@@ -745,13 +745,6 @@ py -3.13 discord_bot.py
   <img src="assets/agregar_canal_iv100.png" alt="Agregar canal iv100" width="41.5%">
 </p>
 
-## 🔓 Como invitar el bot a tu servidor
-
-1. Abre tu aplicacion en el [Discord Developer Portal](https://discord.com/developers/applications).
-2. Ve a `OAuth2` > `URL Generator`.
-3. Marca los scopes `bot` y `applications.commands`.
-4. Concede permisos como `View Channels`, `Send Messages`, `Embed Links` y `Read Message History`.
-5. Abre el enlace generado y selecciona tu servidor.
 
 ## 🚀 Mejoras futuras
 
