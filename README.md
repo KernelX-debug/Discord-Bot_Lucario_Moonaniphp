@@ -661,6 +661,16 @@ py -3.13 pre_questtest.py
 
 
 ## Instalacion para uso como bot de discord
+
+### 🔓 Crear e invitar al bot a tu servidor de discord
+
+1. Abre tu aplicacion en el [Discord Developer Portal](https://discord.com/developers/applications).
+2. Ve a `OAuth2` > `URL Generator`.
+3. Marca los scopes `bot` y `applications.commands`.
+4. Concede permisos como `View Channels`, `Send Messages`, `Embed Links` y `Read Message History`.
+5. Abre el enlace generado y selecciona tu servidor.
+6. Recuerda guardar el token del bot para su posterior uso en el .env (No compartas este token con nadie)
+
 ### Clonar el repositorio
 
 ```powershell
