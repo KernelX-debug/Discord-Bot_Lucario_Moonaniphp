@@ -29,7 +29,9 @@ Before you start, remember you can join our Discord server to check out how the 
 
 - `discord_bot.py`: bot entry point and command definitions
 - `moonani_client.py`: HTTP client and result parsing/filtering logic
+- `iflowgo_client.py`: HTTP client and result parsing/filtering logic
 - `poketest.py`: clean base script used to validate the original idea
+- `pvptest.py`: clean base script used to validate the pvp feature idea in the game
 - `raidtest.py`: clean base script used to validate the raid feature idea in the game
 - `rockettest.py`: clean base script used to validate the rocket feature idea in the game
 - `questtest.py`: clean base script used to validate the quest feature idea in the game
