@@ -2,7 +2,7 @@
 ![Discord](https://img.shields.io/badge/-Discord-5865F2?style=flat-square&logo=discord&logoColor=ffffff)
 ![Python](https://img.shields.io/badge/-Python-3776AB?style=flat-square&logo=python&logoColor=ffffff)
 
-A Discord bot written in Python that queries the Moonani PokeList endpoint to fetch iv100 and iv0 Pokemon spawns; it extracts coordinates and posts them to Discord through commands.
+Discord bot developed in Python that queries the Moonani PokeList and iFlowGo endpoints to get Pokemon spawns, raids, quests and more; it extracts coordinates and posts them to Discord through commands.
 
 Before you start, remember you can join our Discord server to check out how the bot works live 👇
 
@@ -12,48 +12,55 @@ Before you start, remember you can join our Discord server to check out how the 
 
 
 
-## What does this project do? What am I aiming for?
+## What does this project do. What am I aiming for?
 
-- Queries the endpoint `https://moonani.com/PokeList/ajax.php?page=pokemon&action=load`
-- Queries rocket, raid, and quest information from the Moonani website
-- Cleans up the HTML returned by Moonani in fields such as name, IV, coordinates, and country
-- Extracts ready-to-copy-and-paste coordinates, plus a redirected link to Google Maps
+- Queries the `https://moonani.com/PokeList/ajax.php?page=pokemon&action=load` endpoint
+- Queries the 40 pages of the `https://pokecoords.iflowgo.com/iflowgopokecoords/api/v1/pokemon-search` endpoint
+- If needed, for more demanding tasks it queries `https://pokecoords.iflowgo.com/iflowgopokecoords/api/v1/nearby?lat=40.7&lon=-89.65&radius_km=25&layers=spawns%2Craids%2Cquests&limit=800`, where the `lat` and `lon` variables vary according to the 189 entries in the `hotspots.json` file hosted in this repository.
+- Queries rocket, raid and quest information from the Moonani website
+- Cleans up the HTML returned by Moonani in fields such as name, IV, coordinates and country
+- Extracts copy-paste-ready coordinates, plus a redirect link to Google Maps
 - Allows searching by partial name
-- Currently only filters iv100 and iv0 Pokemon
-- Ability to filter additional features mentioned below
+- Currently filters randomiv, iv100, iv0 and pvp rank1 Pokemon
 - Responds on Discord with compact, direct messages
-- Has the ability to send media content matching the Pokemon that appeared in the wild
+- Has the ability to send multimedia content matching the Pokemon that spawned in the wild
 
 ## Essential project structure
 
 - `discord_bot.py`: bot entry point and command definitions
 - `moonani_client.py`: HTTP client and result parsing/filtering logic
 - `poketest.py`: clean base script used to validate the original idea
-- `raidtest.py`: clean base script used to validate the raids feature idea
-- `rockettest.py`: clean base script used to validate the rockets feature idea
-- `questtest.py`: clean base script used to validate the quests feature idea
+- `raidtest.py`: clean base script used to validate the raid feature idea in the game
+- `rockettest.py`: clean base script used to validate the rocket feature idea in the game
+- `questtest.py`: clean base script used to validate the quest feature idea in the game
 - `.env`: environment variables (do not share this data with third parties)
 - `requirements.txt`: project dependencies
 
-## 🔎 Available Discord commands (16)
+## 🔎 Commands available on Discord (22)
 **Commands for all Discord users (@everyone)**
 
 - `/ping`: checks whether the bot is online
-- `/pokemon`: shows richly formatted results for iv100 Pokemon
-- `/pokemon0`: shows richly formatted results for iv0 Pokemon
-- `/coords`: returns iv100 Pokemon coordinates in a compact format that's easy to copy
-- `/coords0`: returns iv0 Pokemon coordinates in a compact format that's easy to copy
-- `/raid`: shows richly formatted results for global raids
-- `/rocket`: shows richly formatted results for global rockets
-- `/quest`: shows richly formatted results for global quests
+- `/pokemon100`: shows results with a rich format for iv100 Pokemon
+- `/pokemon0`: shows results with a rich format for iv0 Pokemon
+- `/buscar`: searches for a Pokemon by name and minimum IV across all of iFlowGo's global hotspots
+- `/coordsiv100`: returns coordinates in a compact format for iv100 Pokemon, easy to copy
+- `/coordsiv0`: returns coordinates in a compact format for iv0 Pokemon, easy to copy
+- `/raid`: shows results with a rich format for raids at a global level
+- `/rocket`: shows results with a rich format for rockets at a global level
+- `/quest`: shows results with a rich format for quests at a global level
   
-**Commands for administrative use on Discord (admin permissions required)**
+**Commands for administrative use on Discord (administrator permissions)**
 
-- `/agregar_canal_iv100`: lets you configure a specific channel to receive constant, up-to-date iv100 Pokemon alerts
-- `/agregar_canal_iv0`: lets you configure a specific channel to receive constant, up-to-date iv0 Pokemon alerts
+- `/agregar_canal_iv100`: lets you configure a specific channel to send iv100 Pokemon alerts continuously and up to date
+- `/agregar_canal_iv0`: lets you configure a specific channel to send iv0 Pokemon alerts continuously and up to date
 - `/ver_canales_iv`: shows the saved global iv100 and iv0 channels
 - `/quitar_canal_iv100`: disables global iv100 alerts on the previously configured channel
 - `/quitar_canal_iv0`: disables global iv0 alerts on the previously configured channel
+- `/agregar_canal_pvp_gl1`: lets you configure a specific channel to send alerts for rank1 Pokemon in the Great League
+- `/agregar_canal_pvp_ul1`: lets you configure a specific channel to send alerts for rank1 Pokemon in the Ultra League
+- `/ver_canales_pvp`: shows the saved global pvp GL1 and UL1 channels
+-`/quitar_canal_pvp_gl1`: disables pvp GL1 alerts on the configured channel
+-`/quitar_canal_pvp_ul1`: disables pvp UL1 alerts on the configured channel
 - `/agregar_seguimiento`: adds alerts for a specific iv100 Pokemon in a channel
 - `/ver_seguimientos`: view all configured iv100 Pokemon watches
 - `/quitar_seguimiento`: removes alerts for a specific iv100 Pokemon from the channel
@@ -63,14 +70,14 @@ Before you start, remember you can join our Discord server to check out how the 
 - Windows OS (Recommended)
 - Python 3.13 (recommended)
 - A bot created in the [Discord Developer Portal](https://discord.com/developers/applications) (Required)
-- A Railway account or another "cloud platform" to run the bot 24/7 without keeping your PC on (Optional)
-- Administrative access on the Discord server where you want to attach this service (Required)
+- A Railway account or another "cloud platform" to run the bot 24/7 without keeping your computer on (Optional)
+- Administrative access on the Discord server where you want to add this service (Required)
 
-# IF YOU'RE LOOKING DIRECTLY FOR THE DISCORD BOT SETUP, YOU CAN SKIP THIS PART AND GO [HERE](https://github.com/KernelX-debug/Discord-Bot_Lucario_Moonaniphp#installation-for-use-as-a-discord-bot)‼️
+# IF YOU'RE LOOKING TO GO STRAIGHT TO THE BOT'S DISCORD SETUP YOU CAN SKIP THIS PART AND GO [HERE](https://github.com/KernelX-debug/Discord-Bot_Lucario_Moonaniphp#instalacion-para-uso-como-bot-de-discord)‼️
 
 ## Quick functionality test for Pokemon
 
-Before using the Discord bot, you can validate the data extraction and parsing from the Moonani endpoint from scratch with a standalone script. This test doesn't require cloning the full repository or setting up Discord.
+Before using the Discord bot, it's possible to validate the extraction and parsing of data from the Moonani endpoint from scratch with a standalone script. This test does not require cloning the full repository or setting up Discord.
 
 ### 1. Create a working folder
 
@@ -80,7 +87,7 @@ cd prueba_moonani
 ```
 
 ### 2. Create the pre_poketest.py file
-Create a Python file named `pre_poketest.py` with this content:
+Create a Python file called `pre_poketest.py` with this content:
 
 ```python
 import requests
@@ -155,19 +162,280 @@ py -3.13 pre_poketest.py
 ## Expected result
 - A direct HTTP request is made to the Moonani endpoint.
 - The received JSON response is processed.
-- The HTML embedded in fields such as Name, Coords, and Country is cleaned up.
-- A list of Pokemon is printed to the console with name, coordinates, CP, level, stats, spawn time, and Google Maps link.
+- The embedded HTML in fields such as Name, Coords and Country is cleaned up.
+- A list of Pokemon is printed to the console with name, coordinates, CP, level, stats, spawn time and a Google Maps link.
 - This test lets you technically verify that the endpoint responds correctly and that the base parsing works before integrating the logic into the Discord bot.
 
 ## Reference image
 
 <p align="center">
-  <img src="assets/testmoonami.png" alt="Moonani test" width="100%">
+  <img src="assets/testmoonami.png" alt="test de moonami" width="100%">
 </p>
+
+## Quick functionality test for rank1 pvp GL1 and UL1 Pokemon
+
+Before using the Discord bot, it's also possible to validate the extraction and parsing of data from the pvp section of the Moonani website from scratch with a standalone script. This test does not require cloning the full repository or setting up Discord.
+
+### 1. Create a working folder
+
+```powershell
+mkdir prueba_moonani
+cd prueba_moonani_pvp
+```
+
+### 2. Create the pre_pvptest.py file
+Create a Python file called `pre_poketest.py` with this content:
+
+```python
+import re
+import time
+import random
+import requests
+from bs4 import BeautifulSoup
+
+URL = "https://moonani.com/PokeList/pvp.php"
+
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/151.0.0.0 Safari/537.36"
+    ),
+    "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
+    "Referer": "https://moonani.com/PokeList/",
+}
+
+PVP_TARGETS = ("GL1", "UL1")
+
+session = requests.Session()
+session.headers.update(HEADERS)
+
+def get_pvp_data():
+    """
+    Obtiene los Pokémon PVP de Moonani cuyo nombre contiene
+    GL1 o UL1.
+    """
+
+    time.sleep(random.uniform(1.5, 3.5))
+
+    response = session.get(URL, timeout=20)
+    response.raise_for_status()
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    pokemon_list = []
+
+    rows = soup.select("#customers tbody tr")
+
+    for row in rows:
+
+        cells = row.find_all("td")
+
+        if len(cells) < 16:
+            continue
+
+
+        name_cell = cells[1]
+
+        name = name_cell.get_text(" ", strip=True)
+
+        target_match = re.search(
+            r"\b(GL1|UL1)\b",
+            name,
+            re.IGNORECASE
+        )
+
+        if not target_match:
+            continue
+
+        league = target_match.group(1).upper()
+
+        try:
+            pokemon_id = int(cells[2].get_text(strip=True))
+        except ValueError:
+            pokemon_id = None
+
+        coords = None
+
+        button = cells[3].find("button")
+
+        if button:
+            coords = button.get("data-clipboard-text")
+
+        if not coords:
+            continue
+
+        if not re.fullmatch(
+            r"-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?",
+            coords
+        ):
+            continue
+
+        try:
+            cp = int(cells[4].get_text(strip=True))
+        except ValueError:
+            cp = None
+
+        try:
+            level = int(cells[5].get_text(strip=True))
+        except ValueError:
+            level = None
+
+        try:
+            attack = int(cells[6].get_text(strip=True))
+        except ValueError:
+            attack = None
+
+        try:
+            defense = int(cells[7].get_text(strip=True))
+        except ValueError:
+            defense = None
+
+        try:
+            hp = int(cells[8].get_text(strip=True))
+        except ValueError:
+            hp = None
+
+        iv_text = cells[9].get_text(" ", strip=True)
+
+        iv_match = re.search(r"(\d+(?:\.\d+)?)\s*%", iv_text)
+
+        if iv_match:
+            iv_percent = float(iv_match.group(1))
+        else:
+            iv_percent = None
+
+        shiny_text = cells[10].get_text(" ", strip=True)
+
+        shiny = shiny_text.lower() == "yes"
+
+
+        pvp_value = cells[11].get_text(" ", strip=True)
+
+        try:
+            pvp_rank = int(cells[12].get_text(strip=True))
+        except ValueError:
+            pvp_rank = None
+
+        start_time = cells[13].get_text(strip=True)
+        end_time = cells[14].get_text(strip=True)
+
+        country = None
+
+        flag_img = cells[15].find("img")
+
+        if flag_img:
+            flag_src = flag_img.get("src", "")
+
+            flag_match = re.search(
+                r"flags/([a-z]{2})\.png",
+                flag_src,
+                re.IGNORECASE
+            )
+
+            if flag_match:
+                country = flag_match.group(1).upper()
+
+        pokemon_list.append(
+            {
+                "name": name,
+                "league": league,
+                "pokemon_id": pokemon_id,
+                "coords": coords,
+                "cp": cp,
+                "level": level,
+                "attack": attack,
+                "defense": defense,
+                "hp": hp,
+                "iv_percent": iv_percent,
+                "shiny": shiny,
+                "pvp": pvp_value,
+                "pvp_rank": pvp_rank,
+                "start_time": start_time,
+                "end_time": end_time,
+                "country": country,
+                "maps_url": f"https://maps.google.com/?q={coords}",
+            }
+        )
+
+    return pokemon_list
+
+if __name__ == "__main__":
+
+    try:
+        pvp_data = get_pvp_data()
+
+        print(
+            f"\nSe encontraron "
+            f"{len(pvp_data)} Pokémon PVP GL1/UL1:\n"
+        )
+
+        for pokemon in pvp_data:
+
+            print("=" * 60)
+
+            print(f"Nombre    : {pokemon['name']}")
+            print(f"Liga      : {pokemon['league']}")
+            print(f"ID        : {pokemon['pokemon_id']}")
+            print(f"Coords    : {pokemon['coords']}")
+            print(f"CP        : {pokemon['cp']}")
+            print(f"Nivel     : {pokemon['level']}")
+
+            print(
+                f"IVs       : "
+                f"{pokemon['attack']}/"
+                f"{pokemon['defense']}/"
+                f"{pokemon['hp']}"
+            )
+
+            print(f"IV        : {pokemon['iv_percent']}%")
+            print(f"Shiny     : {pokemon['shiny']}")
+            print(f"PVP       : {pokemon['pvp']}")
+            print(f"PVP Rank  : {pokemon['pvp_rank']}")
+            print(f"Inicio    : {pokemon['start_time']}")
+            print(f"Fin       : {pokemon['end_time']}")
+            print(f"País      : {pokemon['country']}")
+            print(f"Maps      : {pokemon['maps_url']}")
+
+    except requests.RequestException as e:
+        print(f"Error HTTP: {e}")
+
+    except Exception as e:
+        print(f"Error: {e}")
+```
+
+### 3. Install the required dependency
+
+```powershell
+pip install requests beautifulsoup4
+```
+
+### 4. Run the test
+
+```powershell
+py -3.13 pre_pvptest.py
+```
+
+## Expected result
+- A direct HTTP request is made to the Moonani pvp page.
+- The received HTML is processed using BeautifulSoup.
+- The data embedded in the pvp table is extracted and cleaned up.
+- The Great League and Ultra League rank1 pvp Pokemon are correctly detected.
+- Coordinates are extracted from the `data-clipboard-text` attributes.
+- The start and end times of each wild spawn are correctly obtained.
+- An organized list is printed to the console with the matching league, cp, iv, stats, coordinates, country, spawn time, expiration time and a Google Maps link.
+- This test lets you technically verify that the page responds correctly and that the base parsing works before integrating the logic into the Discord bot.
+
+## Reference image
+
+<p align="center">
+  <img src="assets/testpvp.png" alt="test de moonami" width="100%">
+</p>
+
 
 ## Quick functionality test for rockets
 
-Before using the Discord bot, you can validate the extraction and parsing of the table data from Moonani's rockets section from scratch with a standalone script. This test doesn't require cloning the full repository or setting up Discord.
+Before using the Discord bot, it's possible to validate the extraction and parsing of the dynamic table data from Moonani's rockets section from scratch with a standalone script. This test does not require cloning the full repository or setting up Discord.
 
 ### 1. Create a working folder
 
@@ -188,7 +456,7 @@ pip install requests beautifulsoup4
 New-Item pre_rockettest.py -ItemType File
 ```
 
-### 4. Edit the file using Windows' built-in Notepad
+### 4. Edit the file with Windows' native Notepad
 
 ```powershell
 notepad pre_rockettest.py
@@ -301,7 +569,7 @@ if __name__ == "__main__":
         print(f"Error: {e}")
 ```
 
-**IT'S IMPORTANT TO SAVE THE NOTEPAD CONTENT WITH `ctrl+g` OR FROM FILE/SAVE**
+**IT'S IMPORTANT TO SAVE THE NOTEPAD CONTENT WITH `ctrl+g` OR VIA FILE/SAVE**
 
 ### 5. Run the Python script
 
@@ -314,26 +582,26 @@ python pre_rockettest.py
 - A direct HTTP request is made to the Moonani Rocket page.
 - The received HTML is processed using BeautifulSoup.
 - The data embedded in the Rockets table is extracted and cleaned up.
-- Rocket types and Rocket leaders (Arlo, Cliff, Sierra, and Giovanni) are correctly detected.
+- Rocket types and Rocket leaders (Arlo, Cliff, Sierra and Giovanni) are correctly detected.
 - Coordinates are extracted from the `data-clipboard-text` attributes.
 - The start and end times of each Rocket are correctly obtained.
-- An organized list is printed to the console with Rocket type, Rocket leader, coordinates, country, appearance time, expiration time, and Google Maps link.
+- An organized list is printed to the console with the Rocket type, Rocket leader, coordinates, country, spawn time, expiration time and a Google Maps link.
 - This test lets you technically verify that the page responds correctly and that the base parsing works before integrating the logic into the Discord bot.
 
-**IMPORTANT UPDATE: Lately there have been errors in the amount of data in the dynamic table for Moonani's rockets section; this issue is out of my hands since I'm not the official developer of this web platform.**
-* You can check the page's status at [Moonani Rockets Status](https://moonani.com/PokeList/rocket.php)
+**IMPORTANT UPDATE: Lately there have been errors in the amount of information in Moonani's rockets section dynamic table; this issue is out of my hands since I'm not an official developer of this web platform.**
+* You can check the page status at [Moonani Rockets Status](https://moonani.com/PokeList/rocket.php)
 
 *"if you're not paying for the product, you are the product"*
 
 ## Reference image
 
 <p align="center">
-  <img src="assets/testrocket.png" alt="rocket test" width="100%">
+  <img src="assets/testrocket.png" alt="test de rocket" width="100%">
 </p>
 
 ## Quick functionality test for raids
 
-Before using the Discord bot, you can validate the extraction and parsing of Moonani's dynamic raid tables from scratch with a standalone script that uses the `BeautifulSoup` library. This test doesn't require cloning the full repository or setting up Discord.
+Before using the Discord bot, it's possible to validate the extraction and parsing of Moonani's dynamic table data in the raids section from scratch with a standalone script, using the `BeautifulSoup` library. This test does not require cloning the full repository or setting up Discord.
 
 ### 1. Create a working folder
 
@@ -343,7 +611,7 @@ cd prueba_raids_moonani
 ```
 
 ### 2. Create the pre_raidtest.py file
-Create a Python file named `pre_raidtest.py` with this content:
+Create a Python file called `pre_raidtest.py` with this content:
 
 ```python
 import re
@@ -482,21 +750,21 @@ py -3.13 pre_raidtest.py
 - A direct HTTP request is made to the Moonani Raids page.
 - The received HTML is processed using BeautifulSoup.
 - The data embedded in the Raids table is extracted and cleaned up.
-- Raid bosses and their level are correctly detected.
+- Raid bosses and their raid level are correctly detected.
 - Coordinates are extracted from the `data-clipboard-text` attributes.
 - The start and end times of each Raid are correctly obtained.
-- An organized list is printed to the console with the raid boss, level, coordinates, country, start time, expiration time, and Google Maps link.
+- An organized list is printed to the console with the raid boss, level, coordinates, country, start time, expiration time and a Google Maps link.
 - This test lets you technically verify that the page responds correctly and that the base parsing works before integrating the logic into the Discord bot.
 
 ## Reference image
 
 <p align="center">
-  <img src="assets/testraid.png" alt="Moonani test" width="100%">
+  <img src="assets/testraid.png" alt="test de moonami" width="100%">
 </p>
 
 ## Quick functionality test for quests
 
-Before using the Discord bot, you can validate the extraction and parsing of Moonani's dynamic quest tables with a standalone script that uses the `BeautifulSoup` library. This test doesn't require cloning the full repository or setting up Discord.
+Before using the Discord bot, it's possible to validate the extraction and parsing of Moonani's dynamic table data in the quests section with a standalone script, using the `BeautifulSoup` library. This test does not require cloning the full repository or setting up Discord.
 
 ### 1. Create a working folder
 
@@ -506,7 +774,7 @@ cd prueba_quests_moonani
 ```
 
 ### 2. Create the pre_questtest.py file
-Create a Python file named `pre_questtest.py` with this content:
+Create a Python file called `pre_questtest.py` with this content:
 
 ```python
 import re
@@ -644,33 +912,23 @@ py -3.13 pre_questtest.py
 ```
 
 ## Expected result
-- A direct HTTP request is made to Moonani's Quests page.
+- A direct HTTP request is made to the Moonani Quests page.
 - The received HTML is processed using BeautifulSoup.
 - The data embedded in the Quests table is extracted and cleaned up.
 - The quest reward and its duration are correctly detected.
 - Coordinates are extracted from the `data-clipboard-text` attributes.
 - The start and end times of each quest are correctly obtained.
-- An organized list is printed to the console with the quest reward, ID, coordinates, country, start time, expiration time, and Google Maps link.
+- An organized list is printed to the console with the quest reward, ID, coordinates, country, start time, expiration time and a Google Maps link.
 - This test lets you technically verify that the page responds correctly and that the base parsing works before integrating the logic into the Discord bot.
 
 ## Reference image
 
 <p align="center">
-  <img src="assets/testquest.png" alt="Moonani test" width="100%">
+  <img src="assets/testquest.png" alt="test de moonami" width="100%">
 </p>
 
 
 ## Installation for use as a Discord bot
-
-### 🔓 Create and invite the bot to your Discord server
-
-1. Open your application in the [Discord Developer Portal](https://discord.com/developers/applications).
-2. Go to `OAuth2` > `URL Generator`.
-3. Check the `bot` and `applications.commands` scopes.
-4. Grant permissions such as `View Channels`, `Send Messages`, `Embed Links`, and `Read Message History`.
-5. Open the generated link and select your server.
-6. Remember to save the bot token for later use in the .env file (don't share this token with anyone)
-
 ### Clone the repository
 
 ```powershell
@@ -678,7 +936,7 @@ git clone https://github.com/KernelX-debug/Discord-Bot_Lucario_Moonaniphp.git
 ```
 ### Edit files and install dependencies
 
-1. Inside the project folder.
+1. In the project folder.
 
 ```powershell
 cd Discord-Bot_Lucario_Moonaniphp
@@ -714,16 +972,16 @@ LUCARIO_ALERT_LIMIT_0IV=250
 - `DISCORD_BOT_TOKEN`: your bot's private token
 - `DISCORD_GUILD_ID`: optional, speeds up the appearance of slash commands on a specific server
 - `MOONANI_TIMEOUT`: maximum wait time for HTTP requests
-- `MOONANI_PAGE_SIZE`: how many records to request per batch from the endpoint
+- `MOONANI_PAGE_SIZE`: how many records to request per block from the endpoint
 - `MOONANI_MAX_SCAN_RECORDS`: maximum number of records to scan in a search
-- `MOONANI_RESOLVE_COUNTRIES`: tries to resolve the country from coordinates when Moonani doesn't return one (UNDER MAINTENANCE DUE TO REQUEST LIMIT {e409}, USE "false" BY DEFAULT)
+- `MOONANI_RESOLVE_COUNTRIES`: tries to resolve the country from coordinates when Moonani doesn't return it (UNDER MAINTENANCE DUE TO REQUEST LIMIT {e409}, USE "false" BY DEFAULT)
 - `MOONANI_GEOCODER_ENDPOINT`: reverse geocoding endpoint
 - `MOONANI_GEOCODER_USER_AGENT`: HTTP identifier for the geocoder
 - `LUCARIO_SETTINGS_PATH=lucario_guild_settings.json`: variables for the server ID and Discord channels assigned to send iv100/iv0 coordinates
 - `LUCARIO_MONITOR_INTERVAL_SECONDS=45`: constant polling set to 45 seconds
-- `LUCARIO_ALERT_LIMIT_100IV=250`: limit of 100iv alerts at a time.
-- `LUCARIO_ALERT_LIMIT_0IV=250`: limit of 0iv alerts at a time.
-## Run
+- `LUCARIO_ALERT_LIMIT_100IV=250`: limit of 100iv alerts per batch.
+- `LUCARIO_ALERT_LIMIT_0IV=250`: limit of 0iv alerts per batch.
+## Running it
 
 ```powershell
 py -3.13 discord_bot.py
@@ -732,35 +990,42 @@ py -3.13 discord_bot.py
 ## Usage examples
 
 ```text
-/pokemon nombre:wiglett cantidad:3
-/coords nombre:pikachu cantidad:5
+/pokemon100 nombre: wiglett cantidad: 3
+/coordsiv100 nombre: pikachu cantidad:5
 /raid nombre: kyurem cantidad: 2
 /quest nombre: kecleon cantidad: 4
+/rocket tipo: Arlo cantidad: 5
+/buscar nombre: gyarados miniv: 70 cantidad: 5
 ```
 
 ## How it works
 
 <p align="center">
-  <img src="assets/chikoritasearch.png" alt="Chikorita search" width="45%">
-  <img src="assets/agregar_canal_iv100.png" alt="Add iv100 channel" width="41.5%">
+  <img src="assets/chikoritasearch.png" alt="Busqueda de Chikorita" width="45%">
+  <img src="assets/agregar_canal_iv100.png" alt="Agregar canal iv100" width="41.5%">
 </p>
 
+## 🔓 How to invite the bot to your server
+
+1. Open your application in the [Discord Developer Portal](https://discord.com/developers/applications).
+2. Go to `OAuth2` > `URL Generator`.
+3. Check the `bot` and `applications.commands` scopes.
+4. Grant permissions such as `View Channels`, `Send Messages`, `Embed Links` and `Read Message History`.
+5. Open the generated link and select your server.
 
 ## 🚀 Future improvements
 
-- Using the endpoint, more Pokemon filters can be accessed, such as perfect league R1
-- The main endpoint includes Pokemon with random IV that are considered "candies" on the Moonani website; these could be added to the bot
-- A solution could be found for the rockets issue, since the pokelist app does show filters for these 🤔
+- A solution to the rockets issue could be looked into, since the filters for them do appear in the pokelist app 🤔
 - As of today, this is already considered an official version of the project 🥳🥳
 
 ## ⚙️ Notes
 
 - If Moonani doesn't return a country, the bot shows `Unknown`. You can enable `MOONANI_RESOLVE_COUNTRIES=true` to try to resolve the country from the coordinates using reverse geocoding.
-- Nominatim's public endpoint can return `429 Too Many Requests` if it receives too many queries. For a public bot, it's best to use your own geocoder, a self-hosted one, or a provider with an adequate quota.
+- The public Nominatim endpoint may return `429 Too Many Requests` if it receives too many queries. For a public bot, it's best to use your own geocoder, a self-hosted one, or a provider with an adequate quota.
 - The rockets section may have temporary issues with the dynamic table data, as mentioned earlier; this is due to the page itself.
-- If you see a `CommandInvokeError` when running a command on Discord, I recommend checking your Windows Defender settings and allowing Python's actions on your computer; either way, this doesn't affect the bot's functionality. In the case of a server deployment, this isn't a major issue either.
-- You can check the assets folder to see media content of this bot in use on Discord.
-- If you're reading this at just the right moment, watch out for the earthquakes that have been happening over the last few weeks, bro...
+- If you run into `CommandInvokeError` when running a command on Discord, I recommend checking Windows Defender's actions and allowing Python's actions on the computer; either way, this doesn't affect the bot's functioning. In the case of a server deployment this isn't a major issue either.
+- You can check the assets folder to see multimedia content of this bot being used on Discord.
+- If you're reading this at just the right moment, be careful with the earthquakes that have been happening over the past few weeks, brother..
 
 
 <p align="left">
@@ -770,7 +1035,7 @@ py -3.13 discord_bot.py
 
 ## ☁️ Free 24/7 test hosting
 
-To keep the bot running without needing to keep your PC on, you can use [Railway](https://railway.app). Simply connect your GitHub repository and add the following environment variables with their respective values in the **Variables** section:
+To keep the bot active without needing to keep your PC on, you can use [Railway](https://railway.app). Just connect your GitHub repository and add the following environment variables with their respective values in the **Variables** section:
 
 `DISCORD_BOT_TOKEN`,
 `DISCORD_GUILD_ID`,
@@ -785,7 +1050,7 @@ To keep the bot running without needing to keep your PC on, you can use [Railway
 `LUCARIO_ALERT_LIMIT_100IV`,
 `LUCARIO_ALERT_LIMIT_0IV`
 
-## 👉 Support me ♡
+## 👉 Sponsor me ♡
 
 <p align="left">
   <a href="https://buymeacoffee.com/ghericasas" target="_blank">
