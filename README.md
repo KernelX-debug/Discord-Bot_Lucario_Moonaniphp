@@ -75,7 +75,7 @@ Before you start, remember you can join our Discord server to check out how the 
 - A Railway account or another "cloud platform" to run the bot 24/7 without keeping your computer on (Optional)
 - Administrative access on the Discord server where you want to add this service (Required)
 
-# IF YOU'RE LOOKING TO GO STRAIGHT TO THE BOT'S DISCORD SETUP YOU CAN SKIP THIS PART AND GO [HERE](https://github.com/KernelX-debug/Discord-Bot_Lucario_Moonaniphp#instalacion-para-uso-como-bot-de-discord)‼️
+# IF YOU'RE LOOKING TO GO STRAIGHT TO THE BOT'S DISCORD SETUP YOU CAN SKIP THIS PART AND GO [HERE](https://github.com/KernelX-debug/Discord-Bot_Lucario_Moonaniphp#installation-for-use-as-a-discord-bot)‼️
 
 ## Quick functionality test for Pokemon
 
