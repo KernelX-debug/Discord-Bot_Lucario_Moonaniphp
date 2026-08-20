@@ -59,8 +59,8 @@ Before you start, remember you can join our Discord server to check out how the 
 - `/agregar_canal_pvp_gl1`: lets you configure a specific channel to send alerts for rank1 Pokemon in the Great League
 - `/agregar_canal_pvp_ul1`: lets you configure a specific channel to send alerts for rank1 Pokemon in the Ultra League
 - `/ver_canales_pvp`: shows the saved global pvp GL1 and UL1 channels
--`/quitar_canal_pvp_gl1`: disables pvp GL1 alerts on the configured channel
--`/quitar_canal_pvp_ul1`: disables pvp UL1 alerts on the configured channel
+- `/quitar_canal_pvp_gl1`: disables pvp GL1 alerts on the configured channel
+- `/quitar_canal_pvp_ul1`: disables pvp UL1 alerts on the configured channel
 - `/agregar_seguimiento`: adds alerts for a specific iv100 Pokemon in a channel
 - `/ver_seguimientos`: view all configured iv100 Pokemon watches
 - `/quitar_seguimiento`: removes alerts for a specific iv100 Pokemon from the channel
