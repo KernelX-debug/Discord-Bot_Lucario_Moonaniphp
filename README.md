@@ -15,7 +15,7 @@ Before you start, remember you can join our Discord server to check out how the 
 ## What does this project do. What am I aiming for?
 
 - Queries the endpoint `https://moonani.com/PokeList/ajax.php?page=pokemon&action=load`
-- Queries the 40 pages of the endpoint `https://pokecoords.iflowgo.com/iflowgopokecoords/api/v1/pokemon-search`
+- Query 40 pages of the endpoint `https://pokecoords.iflowgo.com/iflowgopokecoords/api/v1/pokemon-search`
 - If needed, for more demanding tasks it queries `https://pokecoords.iflowgo.com/iflowgopokecoords/api/v1/nearby?lat=40.7&lon=-89.65&radius_km=25&layers=spawns%2Craids%2Cquests&limit=800`, where the `lat` and `lon` variables vary according to the 189 entries in the `hotspots.json` file hosted in this repository.
 - Queries rocket, raid and quest information from the Moonani website
 - Cleans up the HTML returned by Moonani in fields such as name, IV, coordinates and country
