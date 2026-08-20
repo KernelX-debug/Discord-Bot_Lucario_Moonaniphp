@@ -2,7 +2,7 @@
 ![Discord](https://img.shields.io/badge/-Discord-5865F2?style=flat-square&logo=discord&logoColor=ffffff)
 ![Python](https://img.shields.io/badge/-Python-3776AB?style=flat-square&logo=python&logoColor=ffffff)
 
-Bot de Discord en Python que consulta el endpoint de Moonani PokeList para obtener apariciones de Pokemon iv100 y iv0; extrae coordenadas y las publica en Discord mediante comandos.
+Bot de Discord desarrollado en Python que consulta el endpoint de Moonani PokeList e iFlowGo para obtener apariciones de pokemones, raids, quests y más; extrae coordenadas y las publica en Discord mediante comandos.
 
 Antes de empezar, recuerda que puedes unirte a nuestro servidor en discord para revisar el funcionamiento del bot online 👇
 
@@ -15,12 +15,13 @@ Antes de empezar, recuerda que puedes unirte a nuestro servidor en discord para 
 ## Que hace este proyecto. ¿A que quiero llegar?
 
 - Consulta el endpoint `https://moonani.com/PokeList/ajax.php?page=pokemon&action=load`
+- Consulta las 40 páginas del endpoint `https://pokecoords.iflowgo.com/iflowgopokecoords/api/v1/pokemon-search`
+- De ser necesario, para tareas más exigentes consulta `https://pokecoords.iflowgo.com/iflowgopokecoords/api/v1/nearby?lat=40.7&lon=-89.65&radius_km=25&layers=spawns%2Craids%2Cquests&limit=800`, en el cual, las variables `lat` y `lon` varían de acuerdo a las 189 entradas del `hotspots.json` alojado en este repositorio.
 - Consulta información de rockets, raids y quests de la página web moonani
 - Limpia el HTML que devuelve Moonani en campos como nombre, IV, coordenadas y pais
 - Extrae coordenadas listas para copiar y pegar, además de link redirigido a google maps
 - Permite buscar por nombre parcial
-- De momento solo filtra los pokemones iv100 y iv0
-- Capacidad de filtrar funciones adicionales que se mencionarán a continuación
+- De momento filtra los pokemones randomiv, iv100, iv0 y pvp rank1
 - Responde en Discord con mensajes compactos y directos
 - Tiene la capacidad de enviar contenido multimedia de acuerdo al pokemón aparecido en estado salvaje
 
@@ -35,14 +36,15 @@ Antes de empezar, recuerda que puedes unirte a nuestro servidor en discord para 
 - `.env`: variables de entorno (No compartir estos datos con terceros)
 - `requirements.txt`: dependencias del proyecto
 
-## 🔎 Comandos disponibles en discord (16)
+## 🔎 Comandos disponibles en discord (22)
 **Comandos para todos los usuarios de discord (@everyone)**
 
 - `/ping`: verifica si el bot esta en linea
-- `/pokemon`: muestra resultados con formato enriquecido para pokemones iv100
+- `/pokemon100`: muestra resultados con formato enriquecido para pokemones iv100
 - `/pokemon0`: muestra resultados en formato enriquecido para pokemones iv0
-- `/coords`: devuelve coordenadas en formato compacto de pokemones iv100 para copiar con facilidad
-- `/coords0`: devuelve coordenadas en formato compacto de pokemones iv0 para copiar con facilidad
+- `/buscar`: busca un Pokemon por nombre e IV minimo en todos los hotspots globales de iFlowGo
+- `/coordsiv100`: devuelve coordenadas en formato compacto de pokemones iv100 para copiar con facilidad
+- `/coordsiv0`: devuelve coordenadas en formato compacto de pokemones iv0 para copiar con facilidad
 - `/raid`: muestra resultados con formato enriquecido para raids a nivel global
 - `/rocket`: muestra resultados con formato enriquecido para rockets a nivel global
 - `/quest`: muestra resultados con formato enriquecido para quests a nivel global
@@ -54,6 +56,11 @@ Antes de empezar, recuerda que puedes unirte a nuestro servidor en discord para 
 - `/ver_canales_iv`: muestra los canales globales iv100 e iv0 guardados
 - `/quitar_canal_iv100`: desactiva los avisos globales iv100 en el canal antes configurado
 - `/quitar_canal_iv0`: desactiva los avisos globales iv0 en el canal antes configurado
+- `/agregar_canal_pvp_gl1`: permite configurar un canal específico para enviar alertas de los pokemones rank1 de la Great League
+- `/agregar_canal_pvp_ul1`: permite configurar un canal específico para enviar alertas de los pokemones rank1 de la Ultra League
+- `/ver_canales_pvp`: muestra canales globales pvp GL1 y UL1 guardados
+-`/quitar_canal_pvp_gl1`: desactiva los avisos pvp GL1 en el canal configurado
+-`/quitar_canal_pvp_ul1`: desactiva los avisos pvp UL1 en el canal configurado
 - `/agregar_seguimiento`: agrega alertas de un pokemón específico iv100 en un canal
 - `/ver_seguimientos`: ver todos los seguimientos de pokémon iv100 configurados
 - `/quitar_seguimiento`: quitar alertas de un pokemón específico iv100 del canal
@@ -164,6 +171,267 @@ py -3.13 pre_poketest.py
 <p align="center">
   <img src="assets/testmoonami.png" alt="test de moonami" width="100%">
 </p>
+
+## Prueba de funcionamiento breve para pokemones rank1 pvp GL1 y UL1
+
+Antes de usar el bot de Discord, también es posible validar desde cero la extraccion y el parseo de datos de la sección pvp de la página web de Moonani con un script independiente. Esta prueba no requiere clonar el repositorio completo ni configurar Discord.
+
+### 1. Crear una carpeta de trabajo
+
+```powershell
+mkdir prueba_moonani
+cd prueba_moonani_pvp
+```
+
+### 2. Crear el archivo pre_pvptest.py
+Crea un archivo python llamado `pre_poketest.py` con este contenido:
+
+```python
+import re
+import time
+import random
+import requests
+from bs4 import BeautifulSoup
+
+URL = "https://moonani.com/PokeList/pvp.php"
+
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/151.0.0.0 Safari/537.36"
+    ),
+    "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
+    "Referer": "https://moonani.com/PokeList/",
+}
+
+PVP_TARGETS = ("GL1", "UL1")
+
+session = requests.Session()
+session.headers.update(HEADERS)
+
+def get_pvp_data():
+    """
+    Obtiene los Pokémon PVP de Moonani cuyo nombre contiene
+    GL1 o UL1.
+    """
+
+    time.sleep(random.uniform(1.5, 3.5))
+
+    response = session.get(URL, timeout=20)
+    response.raise_for_status()
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    pokemon_list = []
+
+    rows = soup.select("#customers tbody tr")
+
+    for row in rows:
+
+        cells = row.find_all("td")
+
+        if len(cells) < 16:
+            continue
+
+
+        name_cell = cells[1]
+
+        name = name_cell.get_text(" ", strip=True)
+
+        target_match = re.search(
+            r"\b(GL1|UL1)\b",
+            name,
+            re.IGNORECASE
+        )
+
+        if not target_match:
+            continue
+
+        league = target_match.group(1).upper()
+
+        try:
+            pokemon_id = int(cells[2].get_text(strip=True))
+        except ValueError:
+            pokemon_id = None
+
+        coords = None
+
+        button = cells[3].find("button")
+
+        if button:
+            coords = button.get("data-clipboard-text")
+
+        if not coords:
+            continue
+
+        if not re.fullmatch(
+            r"-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?",
+            coords
+        ):
+            continue
+
+        try:
+            cp = int(cells[4].get_text(strip=True))
+        except ValueError:
+            cp = None
+
+        try:
+            level = int(cells[5].get_text(strip=True))
+        except ValueError:
+            level = None
+
+        try:
+            attack = int(cells[6].get_text(strip=True))
+        except ValueError:
+            attack = None
+
+        try:
+            defense = int(cells[7].get_text(strip=True))
+        except ValueError:
+            defense = None
+
+        try:
+            hp = int(cells[8].get_text(strip=True))
+        except ValueError:
+            hp = None
+
+        iv_text = cells[9].get_text(" ", strip=True)
+
+        iv_match = re.search(r"(\d+(?:\.\d+)?)\s*%", iv_text)
+
+        if iv_match:
+            iv_percent = float(iv_match.group(1))
+        else:
+            iv_percent = None
+
+        shiny_text = cells[10].get_text(" ", strip=True)
+
+        shiny = shiny_text.lower() == "yes"
+
+
+        pvp_value = cells[11].get_text(" ", strip=True)
+
+        try:
+            pvp_rank = int(cells[12].get_text(strip=True))
+        except ValueError:
+            pvp_rank = None
+
+        start_time = cells[13].get_text(strip=True)
+        end_time = cells[14].get_text(strip=True)
+
+        country = None
+
+        flag_img = cells[15].find("img")
+
+        if flag_img:
+            flag_src = flag_img.get("src", "")
+
+            flag_match = re.search(
+                r"flags/([a-z]{2})\.png",
+                flag_src,
+                re.IGNORECASE
+            )
+
+            if flag_match:
+                country = flag_match.group(1).upper()
+
+        pokemon_list.append(
+            {
+                "name": name,
+                "league": league,
+                "pokemon_id": pokemon_id,
+                "coords": coords,
+                "cp": cp,
+                "level": level,
+                "attack": attack,
+                "defense": defense,
+                "hp": hp,
+                "iv_percent": iv_percent,
+                "shiny": shiny,
+                "pvp": pvp_value,
+                "pvp_rank": pvp_rank,
+                "start_time": start_time,
+                "end_time": end_time,
+                "country": country,
+                "maps_url": f"https://maps.google.com/?q={coords}",
+            }
+        )
+
+    return pokemon_list
+
+if __name__ == "__main__":
+
+    try:
+        pvp_data = get_pvp_data()
+
+        print(
+            f"\nSe encontraron "
+            f"{len(pvp_data)} Pokémon PVP GL1/UL1:\n"
+        )
+
+        for pokemon in pvp_data:
+
+            print("=" * 60)
+
+            print(f"Nombre    : {pokemon['name']}")
+            print(f"Liga      : {pokemon['league']}")
+            print(f"ID        : {pokemon['pokemon_id']}")
+            print(f"Coords    : {pokemon['coords']}")
+            print(f"CP        : {pokemon['cp']}")
+            print(f"Nivel     : {pokemon['level']}")
+
+            print(
+                f"IVs       : "
+                f"{pokemon['attack']}/"
+                f"{pokemon['defense']}/"
+                f"{pokemon['hp']}"
+            )
+
+            print(f"IV        : {pokemon['iv_percent']}%")
+            print(f"Shiny     : {pokemon['shiny']}")
+            print(f"PVP       : {pokemon['pvp']}")
+            print(f"PVP Rank  : {pokemon['pvp_rank']}")
+            print(f"Inicio    : {pokemon['start_time']}")
+            print(f"Fin       : {pokemon['end_time']}")
+            print(f"País      : {pokemon['country']}")
+            print(f"Maps      : {pokemon['maps_url']}")
+
+    except requests.RequestException as e:
+        print(f"Error HTTP: {e}")
+
+    except Exception as e:
+        print(f"Error: {e}")
+```
+
+### 3. Instalar la dependencia necesaria
+
+```powershell
+pip install requests beautifulsoup4
+```
+
+### 4. Ejecutar la prueba
+
+```powershell
+py -3.13 pre_pvptest.py
+```
+
+## Resultado esperado
+- Se realiza una petición HTTP directa a la página pvp de Moonani.
+- Se procesa el HTML recibido utilizando BeautifulSoup.
+- Se extraen y limpian los datos embebidos en la tabla de pvp.
+- Se detectan correctamente los pokemones pvp rank1 de la Great League y Ultra league.
+- Se extraen las coordenadas desde los atributos `data-clipboard-text`.
+- Se obtienen correctamente los tiempos de inicio y finalización de cada aparición salvaje.
+- Se imprime en consola una lista organizada con la liga a la que corresponde, cp, iv, stats, coordenadas, país, tiempo de aparición, tiempo de expiración y enlace de Google Maps.
+- Esta prueba permite verificar técnicamente que la página responde correctamente y que el parseo base funciona antes de integrar la lógica en el bot de Discord.
+
+## Imagen de referencia
+
+<p align="center">
+  <img src="assets/testpvp.png" alt="test de moonami" width="100%">
+</p>
+
 
 ## Prueba de funcionamiento breve para rockets
 
@@ -661,16 +929,6 @@ py -3.13 pre_questtest.py
 
 
 ## Instalacion para uso como bot de discord
-
-### 🔓 Crear e invitar al bot a tu servidor de discord
-
-1. Abre tu aplicacion en el [Discord Developer Portal](https://discord.com/developers/applications).
-2. Ve a `OAuth2` > `URL Generator`.
-3. Marca los scopes `bot` y `applications.commands`.
-4. Concede permisos como `View Channels`, `Send Messages`, `Embed Links` y `Read Message History`.
-5. Abre el enlace generado y selecciona tu servidor.
-6. Recuerda guardar el token del bot para su posterior uso en el .env (No compartas este token con nadie)
-
 ### Clonar el repositorio
 
 ```powershell
@@ -732,10 +990,12 @@ py -3.13 discord_bot.py
 ## Ejemplos de uso
 
 ```text
-/pokemon nombre:wiglett cantidad:3
-/coords nombre:pikachu cantidad:5
+/pokemon100 nombre: wiglett cantidad: 3
+/coordsiv100 nombre: pikachu cantidad:5
 /raid nombre: kyurem cantidad: 2
 /quest nombre: kecleon cantidad: 4
+/rocket tipo: Arlo cantidad: 5
+/buscar nombre: gyarados miniv: 70 cantidad: 5
 ```
 
 ## Funcionamiento
@@ -745,11 +1005,16 @@ py -3.13 discord_bot.py
   <img src="assets/agregar_canal_iv100.png" alt="Agregar canal iv100" width="41.5%">
 </p>
 
+## 🔓 Como invitar el bot a tu servidor
+
+1. Abre tu aplicacion en el [Discord Developer Portal](https://discord.com/developers/applications).
+2. Ve a `OAuth2` > `URL Generator`.
+3. Marca los scopes `bot` y `applications.commands`.
+4. Concede permisos como `View Channels`, `Send Messages`, `Embed Links` y `Read Message History`.
+5. Abre el enlace generado y selecciona tu servidor.
 
 ## 🚀 Mejoras futuras
 
-- Utilizando el endpoint se puede acceder a más filtros de pokemones como los perfect league R1
-- El endpoint principal incluye pokemones con iv random que se consideran "caramelos" en la página web de Moonani, estos pueden ser agregados al bot
 - Se puede buscar una solución al problema de los rockets, ya que en la app de pokelist si aparecen los filtros de estos mismos 🤔
 - Hasta la fecha, esta ya se considera una versión oficial del proyecto 🥳🥳
 
@@ -760,7 +1025,7 @@ py -3.13 discord_bot.py
 - La sección de rockets puede tener problemas temporales en cuanto a los datos de la tabla dinámica, como antes lo mencioné, esto se debe a la página en si.
 - Si llegas a observar `CommandInvokeError` al ejecutar algún comando en discord, te recomiendo revisar las operaciones del Windows Defender y permitas las acciones de python en el ordenador, de igual manera esto no afecta al funcionamiento del bot. En caso de deploy en servidores este tampoco es un problema mayor.
 - Puedes revisar la carpeta assets para revisar contenido multimedia del uso de este bot en discord.
-- Si estás viendo esto en su momento, felices fiestas patrias bro..
+- Si estás leyendo esto justo en el momento adecuado, ten cuidado con los terremotos que han estado ocurriendo durante las últimas semanas, hermano..
 
 
 <p align="left">
