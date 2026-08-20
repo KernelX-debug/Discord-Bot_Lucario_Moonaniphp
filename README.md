@@ -1025,7 +1025,7 @@ py -3.13 discord_bot.py
 - The rockets section may have temporary issues with the dynamic table data, as mentioned earlier; this is due to the page itself.
 - If you run into `CommandInvokeError` when running a command on Discord, I recommend checking Windows Defender's actions and allowing Python's actions on the computer; either way, this doesn't affect the bot's functioning. In the case of a server deployment this isn't a major issue either.
 - You can check the assets folder to see multimedia content of this bot being used on Discord.
-- If you're reading this at just the right moment, be careful with the earthquakes that have been happening over the past few weeks, brother..
+- If you're reading this at just the right moment, be careful with the earthquakes that have been happening over the past few weeks, bro..
 
 
 <p align="left">
