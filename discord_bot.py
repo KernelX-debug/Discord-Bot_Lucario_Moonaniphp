@@ -12,7 +12,9 @@ from discord import app_commands
 from discord.ext import commands
 import requests
 
+from iflowgo_client import IFlowGoClient, IFlowGoSearchResult, IFlowGoSpawn
 from moonani_client import MoonaniClient, PokemonSpawn, RocketSpawn
+from pvptest import get_pvp_gl1_data, get_pvp_ul1_data
 from questtest import search_quests
 from raidtest import get_raid_data
 
@@ -78,6 +80,8 @@ ROCKET_CHOICES = [
 WATCH_KIND_PREFIX = "watch"
 GLOBAL_IV100_KIND = "global_iv100"
 GLOBAL_IV0_KIND = "global_iv0"
+GLOBAL_PVP_GL1_KIND = "global_pvp_gl1"
+GLOBAL_PVP_UL1_KIND = "global_pvp_ul1"
 WATCH_SPAWN_COOLDOWN_SECONDS = 90 * 60
 WATCH_ERROR_COOLDOWN_SECONDS = 30 * 60
 POKEMON_IMAGE_TIMEOUT_SECONDS = 10
@@ -242,6 +246,93 @@ def _build_quest_embed(quest: Dict[str, str]) -> discord.Embed:
     return embed
 
 
+def _pvp_unique_key(pokemon: Dict[str, object]) -> str:
+    return "|".join(
+        str(pokemon.get(field, ""))
+        for field in ("league", "pokemon_id", "coords", "end_time")
+    )
+
+
+def _build_pvp_embed(
+    pokemon: Dict[str, object],
+    thumbnail_attachment_name: Optional[str] = None,
+) -> discord.Embed:
+    league = str(pokemon.get("league", "")).upper()
+    league_label = "Great League (GL1)" if league == "GL1" else "Ultra League (UL1)" if league == "UL1" else league
+
+    color = discord.Color.gold() if pokemon.get("shiny") else discord.Color.blurple()
+
+    embed = discord.Embed(
+        title=str(pokemon.get("name") or "Pokemon PVP"),
+        description=f"Coords: `{pokemon.get('coords', '')}`",
+        color=color,
+    )
+    embed.add_field(name="Liga", value=league_label, inline=True)
+    embed.add_field(
+        name="PVP",
+        value=f"{pokemon.get('pvp', 'N/D')} (#{pokemon.get('pvp_rank', 'N/D')})",
+        inline=True,
+    )
+    embed.add_field(name="IV", value=f"{pokemon.get('iv_percent', 'N/D')}%", inline=True)
+    embed.add_field(name="CP", value=str(pokemon.get("cp", "N/D")), inline=True)
+    embed.add_field(name="Nivel", value=str(pokemon.get("level", "N/D")), inline=True)
+    embed.add_field(
+        name="Stats",
+        value=f"ATK {pokemon.get('attack', 'N/D')} | DEF {pokemon.get('defense', 'N/D')} | HP {pokemon.get('hp', 'N/D')}",
+        inline=True,
+    )
+    embed.add_field(name="Mapa", value=f"[Abrir en Google Maps]({pokemon.get('maps_url', '')})", inline=False)
+    embed.add_field(name="Fin", value=str(pokemon.get("end_time") or "N/D"), inline=True)
+    embed.add_field(name="Pais", value=str(pokemon.get("country") or "Unknown"), inline=True)
+    embed.set_footer(text="Datos obtenidos por Lucario desde Moonani")
+
+    if thumbnail_attachment_name:
+        embed.set_thumbnail(url=f"attachment://{thumbnail_attachment_name}")
+    elif pokemon.get("image_url"):
+        embed.set_thumbnail(url=str(pokemon["image_url"]))
+
+    return embed
+
+
+def _format_iflowgo_spawn(index: int, spawn: IFlowGoSpawn) -> str:
+    location = ", ".join(item for item in (spawn.city, spawn.region, spawn.country) if item and item != "Unknown")
+    return (
+        f"**{index}. {spawn.pokemon_name}** (#{spawn.pokemon_id})\n"
+        f"Coords: `{spawn.coords}` | [Maps]({spawn.maps_url})\n"
+        f"IV: {spawn.iv_percent:g}% | CP: {spawn.cp} | Nivel: {spawn.level}\n"
+        f"ATK {spawn.attack} | DEF {spawn.defense} | HP {spawn.hp}\n"
+        f"Fin: {spawn.end_time or 'N/D'} | Zona: {location or 'Unknown'}"
+    )
+
+
+def _build_iflowgo_search_embeds(
+    results: IFlowGoSearchResult,
+    pokemon_name: str,
+    min_iv: int,
+    limit: int,
+) -> List[discord.Embed]:
+    selected_spawns = results.spawns[:limit]
+    chunks = _chunk_lines(
+        [_format_iflowgo_spawn(index, spawn) for index, spawn in enumerate(selected_spawns, start=1)],
+        max_chars=3600,
+    )
+    embeds = []
+    for chunk_index, chunk in enumerate(chunks, start=1):
+        title = f"Busqueda global: {pokemon_name.title()} IV >= {min_iv}%"
+        if len(chunks) > 1:
+            title = f"{title} ({chunk_index}/{len(chunks)})"
+        embed = discord.Embed(title=title, description=chunk, color=discord.Color.green())
+        if results.source == "global":
+            footer = f"iFlowGo global: {len(results.spawns)} coincidencia(s)"
+        else:
+            footer = f"iFlowGo: {len(results.spawns)} coincidencia(s) en {results.total_hotspots} hotspots"
+            if results.failed_hotspots:
+                footer += f" | {results.failed_hotspots} hotspot(s) sin respuesta"
+        embed.set_footer(text=footer)
+        embeds.append(embed)
+    return embeds
+
+
 def _format_coords_line(index: int, spawn: PokemonSpawn) -> str:
     return (
         f"**{index}. {discord.utils.escape_markdown(spawn.name)}** "
@@ -314,12 +405,17 @@ async def _send_pokemon_detail_embeds(
     results: List[PokemonSpawn],
     source_label: str,
 ) -> None:
-    for spawn in results:
+    for index, spawn in enumerate(results):
         embed, file = await _build_pokemon_embed_payload(spawn, source_label)
-        if file is not None:
-            await interaction.followup.send(embed=embed, file=file)
+        if index == 0 or interaction.channel is None:
+            if file is not None:
+                await interaction.followup.send(embed=embed, file=file)
+            else:
+                await interaction.followup.send(embed=embed)
+        elif file is not None:
+            await interaction.channel.send(embed=embed, file=file)
         else:
-            await interaction.followup.send(embed=embed)
+            await interaction.channel.send(embed=embed)
 
 
 async def _send_pokemon_embed_to_channel(
@@ -334,10 +430,71 @@ async def _send_pokemon_embed_to_channel(
         await channel.send(embed=embed)
 
 
+def _pvp_image_filename(pokemon: Dict[str, object]) -> str:
+    parsed_path = urlparse(str(pokemon.get("image_url") or "")).path
+    extension = Path(parsed_path).suffix.lower()
+    if extension not in {".png", ".jpg", ".jpeg", ".webp", ".gif"}:
+        extension = ".png"
+    return f"pokemon_{pokemon.get('pokemon_id') or 'pvp'}{extension}"
+
+
+def _download_pvp_image(pokemon: Dict[str, object]) -> Optional[Tuple[bytes, str]]:
+    image_url = pokemon.get("image_url")
+    if not image_url:
+        return None
+
+    response = requests.get(
+        image_url,
+        headers={"User-Agent": "Mozilla/5.0 (Lucario Discord Bot)"},
+        timeout=POKEMON_IMAGE_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+
+    content = response.content
+    if not content or len(content) > POKEMON_IMAGE_MAX_BYTES:
+        return None
+
+    content_type = response.headers.get("Content-Type", "").lower()
+    if content_type and "image" not in content_type:
+        return None
+
+    return content, _pvp_image_filename(pokemon)
+
+
+async def _build_pvp_embed_payload(
+    pokemon: Dict[str, object],
+) -> Tuple[discord.Embed, Optional[discord.File]]:
+    image_payload = None
+    try:
+        image_payload = await _run_blocking(_download_pvp_image, pokemon)
+    except Exception:
+        image_payload = None
+
+    if image_payload is None:
+        return _build_pvp_embed(pokemon), None
+
+    image_bytes, filename = image_payload
+    embed = _build_pvp_embed(pokemon, filename)
+    file = discord.File(io.BytesIO(image_bytes), filename=filename)
+    return embed, file
+
+
+async def _send_pvp_embed_to_channel(
+    channel: discord.TextChannel,
+    pokemon: Dict[str, object],
+) -> None:
+    embed, file = await _build_pvp_embed_payload(pokemon)
+    if file is not None:
+        await channel.send(embed=embed, file=file)
+    else:
+        await channel.send(embed=embed)
+
+
 class LucarioDiscordBot(commands.Bot):
     def __init__(
         self,
         moonani: MoonaniClient,
+        iflowgo: IFlowGoClient,
         guild_id: Optional[int],
         page_size: int,
         max_scan_records: int,
@@ -349,6 +506,7 @@ class LucarioDiscordBot(commands.Bot):
         intents = discord.Intents.default()
         super().__init__(command_prefix="!", intents=intents)
         self.moonani = moonani
+        self.iflowgo = iflowgo
         self.guild_id = guild_id
         self.page_size = page_size
         self.max_scan_records = max_scan_records
@@ -396,6 +554,8 @@ class LucarioDiscordBot(commands.Bot):
                 "watches": watches,
                 "iv100_channels": self._normalize_channel_list(settings.get("iv100_channels", [])),
                 "iv0_channels": self._normalize_channel_list(settings.get("iv0_channels", [])),
+                "pvp_gl1_channels": self._normalize_channel_list(settings.get("pvp_gl1_channels", [])),
+                "pvp_ul1_channels": self._normalize_channel_list(settings.get("pvp_ul1_channels", [])),
             }
         return normalized
 
@@ -424,10 +584,14 @@ class LucarioDiscordBot(commands.Bot):
                 "watches": [],
                 "iv100_channels": [],
                 "iv0_channels": [],
+                "pvp_gl1_channels": [],
+                "pvp_ul1_channels": [],
             }
         self.guild_settings[guild_key].setdefault("watches", [])
         self.guild_settings[guild_key].setdefault("iv100_channels", [])
         self.guild_settings[guild_key].setdefault("iv0_channels", [])
+        self.guild_settings[guild_key].setdefault("pvp_gl1_channels", [])
+        self.guild_settings[guild_key].setdefault("pvp_ul1_channels", [])
         return self.guild_settings[guild_key]
 
     def get_watches(self, guild_id: int) -> List[Dict[str, object]]:
@@ -533,6 +697,17 @@ class LucarioDiscordBot(commands.Bot):
         key = (guild_id, channel_id, spawn.number, spawn.coords)
         self.watch_cooldown_cache[key] = asyncio.get_running_loop().time()
 
+    def _is_pvp_on_cooldown(self, guild_id: int, channel_id: int, pokemon: Dict[str, object]) -> bool:
+        key = (guild_id, channel_id, "pvp", pokemon.get("league"), pokemon.get("pokemon_id"), pokemon.get("coords"))
+        last_sent = self.watch_cooldown_cache.get(key)
+        if last_sent is None:
+            return False
+        return (asyncio.get_running_loop().time() - last_sent) < WATCH_SPAWN_COOLDOWN_SECONDS
+
+    def _mark_pvp_cooldown(self, guild_id: int, channel_id: int, pokemon: Dict[str, object]) -> None:
+        key = (guild_id, channel_id, "pvp", pokemon.get("league"), pokemon.get("pokemon_id"), pokemon.get("coords"))
+        self.watch_cooldown_cache[key] = asyncio.get_running_loop().time()
+
     async def _fetch_watch_source_spawns(self) -> List[PokemonSpawn]:
         return await _run_blocking(
             self.moonani.search_pokemon,
@@ -553,6 +728,12 @@ class LucarioDiscordBot(commands.Bot):
             self.max_scan_records,
         )
 
+    async def _fetch_pvp_gl1_spawns(self) -> List[Dict[str, object]]:
+        return await _run_blocking(get_pvp_gl1_data)
+
+    async def _fetch_pvp_ul1_spawns(self) -> List[Dict[str, object]]:
+        return await _run_blocking(get_pvp_ul1_data)
+
     async def _resolve_text_channel(self, channel_id: int) -> Optional[discord.TextChannel]:
         channel = self.get_channel(channel_id)
         if isinstance(channel, discord.TextChannel):
@@ -567,23 +748,12 @@ class LucarioDiscordBot(commands.Bot):
             return fetched_channel
         return None
 
-    async def _notify_watch_error(self, channel_id: int, exc: Exception, label: str = "seguimientos") -> None:
+    async def _log_watch_error(self, channel_id: int, exc: Exception, label: str = "seguimientos") -> None:
         now = asyncio.get_running_loop().time()
         if (now - self.watch_error_cooldown_cache.get(channel_id, 0.0)) < WATCH_ERROR_COOLDOWN_SECONDS:
             return
 
-        channel = await self._resolve_text_channel(channel_id)
-        if channel is None:
-            return
-
-        try:
-            await channel.send(
-                f"No pude revisar {label} en este momento.\n"
-                f"Motivo: {_format_moonani_error(exc)}"
-            )
-        except Exception:
-            return
-
+        print(f"No pude revisar {label} en este momento. Motivo: {_format_moonani_error(exc)}")
         self.watch_error_cooldown_cache[channel_id] = now
 
     async def _send_spawn_alerts(
@@ -618,6 +788,39 @@ class LucarioDiscordBot(commands.Bot):
 
         self.watch_seen_cache[seen_key] = {spawn.unique_key for spawn in spawns}
 
+    async def _send_pvp_alerts(
+        self,
+        guild_id: int,
+        channel_id: int,
+        cache_kind: str,
+        pokemons: List[Dict[str, object]],
+    ) -> None:
+        channel = await self._resolve_text_channel(channel_id)
+        if channel is None:
+            return
+
+        seen_key = (guild_id, cache_kind)
+        seen = self.watch_seen_cache.setdefault(seen_key, set())
+
+        for pokemon in pokemons:
+            unique_key = _pvp_unique_key(pokemon)
+            if unique_key in seen:
+                continue
+            if self._is_pvp_on_cooldown(guild_id, channel_id, pokemon):
+                seen.add(unique_key)
+                continue
+
+            try:
+                await _send_pvp_embed_to_channel(channel, pokemon)
+            except Exception as exc:
+                print(f"No pude enviar alerta PVP '{cache_kind}' al canal {channel_id}: {exc}")
+                break
+
+            seen.add(unique_key)
+            self._mark_pvp_cooldown(guild_id, channel_id, pokemon)
+
+        self.watch_seen_cache[seen_key] = {_pvp_unique_key(pokemon) for pokemon in pokemons}
+
     async def _monitor_watch_loop(self) -> None:
         await self.wait_until_ready()
         await asyncio.sleep(self.watch_monitor_interval_seconds)
@@ -626,8 +829,16 @@ class LucarioDiscordBot(commands.Bot):
             watch_names = self._collect_watch_names()
             iv100_channels = self._collect_alert_channels("iv100_channels")
             iv0_channels = self._collect_alert_channels("iv0_channels")
+            pvp_gl1_channels = self._collect_alert_channels("pvp_gl1_channels")
+            pvp_ul1_channels = self._collect_alert_channels("pvp_ul1_channels")
 
-            if not watch_names and not iv100_channels and not iv0_channels:
+            if (
+                not watch_names
+                and not iv100_channels
+                and not iv0_channels
+                and not pvp_gl1_channels
+                and not pvp_ul1_channels
+            ):
                 await asyncio.sleep(self.watch_monitor_interval_seconds)
                 continue
 
@@ -643,11 +854,11 @@ class LucarioDiscordBot(commands.Bot):
                         for watch in settings.get("watches", []):
                             channel_id = int(watch.get("channel_id", 0))
                             if channel_id and channel_id not in notified_channels:
-                                await self._notify_watch_error(channel_id, exc, "seguimientos de 100 IV")
+                                await self._log_watch_error(channel_id, exc, "seguimientos de 100 IV")
                                 notified_channels.add(channel_id)
                     for _, channel_id in iv100_channels:
                         if channel_id not in notified_channels:
-                            await self._notify_watch_error(channel_id, exc, "canales globales IV100")
+                            await self._log_watch_error(channel_id, exc, "canales globales IV100")
                             notified_channels.add(channel_id)
                     await asyncio.sleep(self.watch_monitor_interval_seconds)
                     continue
@@ -660,7 +871,33 @@ class LucarioDiscordBot(commands.Bot):
                     notified_channels = set()
                     for _, channel_id in iv0_channels:
                         if channel_id not in notified_channels:
-                            await self._notify_watch_error(channel_id, exc, "canales globales IV0")
+                            await self._log_watch_error(channel_id, exc, "canales globales IV0")
+                            notified_channels.add(channel_id)
+                    await asyncio.sleep(self.watch_monitor_interval_seconds)
+                    continue
+
+            current_pvp_gl1_spawns = []  # type: List[Dict[str, object]]
+            if pvp_gl1_channels:
+                try:
+                    current_pvp_gl1_spawns = await self._fetch_pvp_gl1_spawns()
+                except Exception as exc:
+                    notified_channels = set()
+                    for _, channel_id in pvp_gl1_channels:
+                        if channel_id not in notified_channels:
+                            await self._log_watch_error(channel_id, exc, "canales globales PVP GL1")
+                            notified_channels.add(channel_id)
+                    await asyncio.sleep(self.watch_monitor_interval_seconds)
+                    continue
+
+            current_pvp_ul1_spawns = []  # type: List[Dict[str, object]]
+            if pvp_ul1_channels:
+                try:
+                    current_pvp_ul1_spawns = await self._fetch_pvp_ul1_spawns()
+                except Exception as exc:
+                    notified_channels = set()
+                    for _, channel_id in pvp_ul1_channels:
+                        if channel_id not in notified_channels:
+                            await self._log_watch_error(channel_id, exc, "canales globales PVP UL1")
                             notified_channels.add(channel_id)
                     await asyncio.sleep(self.watch_monitor_interval_seconds)
                     continue
@@ -679,6 +916,22 @@ class LucarioDiscordBot(commands.Bot):
                     channel_id,
                     f"{GLOBAL_IV0_KIND}:{channel_id}",
                     current_zero_iv_spawns,
+                )
+
+            for guild_id, channel_id in pvp_gl1_channels:
+                await self._send_pvp_alerts(
+                    guild_id,
+                    channel_id,
+                    f"{GLOBAL_PVP_GL1_KIND}:{channel_id}",
+                    current_pvp_gl1_spawns,
+                )
+
+            for guild_id, channel_id in pvp_ul1_channels:
+                await self._send_pvp_alerts(
+                    guild_id,
+                    channel_id,
+                    f"{GLOBAL_PVP_UL1_KIND}:{channel_id}",
+                    current_pvp_ul1_spawns,
                 )
 
             normalized_matches = {}  # type: Dict[str, List[PokemonSpawn]]
@@ -752,9 +1005,9 @@ def register_commands(bot: LucarioDiscordBot) -> None:
         latency_ms = round(bot.latency * 1000, 2)
         await interaction.response.send_message(f"Pong. Latencia aproximada: {latency_ms} ms")
 
-    @bot.tree.command(name="pokemon", description="Busca Pokemon 100 IV en Moonani.")
+    @bot.tree.command(name="pokemon100", description="Busca Pokemon 100 IV en Moonani.")
     @app_commands.describe(nombre="Nombre completo o parcial del Pokemon", cantidad="Cuantos resultados mostrar (1-10)")
-    async def pokemon(interaction: discord.Interaction, nombre: Optional[str] = None, cantidad: int = 5) -> None:
+    async def pokemon100(interaction: discord.Interaction, nombre: Optional[str] = None, cantidad: int = 5) -> None:
         if not 1 <= cantidad <= 10:
             await interaction.response.send_message("`cantidad` debe estar entre 1 y 10.", ephemeral=True)
             return
@@ -781,9 +1034,51 @@ def register_commands(bot: LucarioDiscordBot) -> None:
 
         await _send_pokemon_detail_embeds(interaction, results, "Moonani")
 
-    @bot.tree.command(name="coords", description="Devuelve coordenadas de 100 IV listas para copiar.")
+    @bot.tree.command(name="buscar", description="Busca Pokemon globalmente en los hotspots de iFlowGo.")
+    @app_commands.describe(
+        pokemon="Nombre del Pokemon, por ejemplo chikorita",
+        miniv="IV minimo requerido (0-100)",
+        cantidad="Cuantos resultados mostrar (1-25)",
+    )
+    async def buscar(
+        interaction: discord.Interaction,
+        pokemon: str,
+        miniv: app_commands.Range[int, 0, 100] = 0,
+        cantidad: app_commands.Range[int, 1, 25] = 10,
+    ) -> None:
+        pokemon = pokemon.strip()
+        if not pokemon:
+            await interaction.response.send_message("Debes indicar el nombre del Pokemon.", ephemeral=True)
+            return
+
+        await interaction.response.defer(thinking=True)
+        try:
+            search_result = await _run_blocking(bot.iflowgo.search_pokemon, pokemon, miniv, cantidad)
+        except ValueError as exc:
+            await interaction.followup.send(str(exc), ephemeral=True)
+            return
+        except requests.RequestException as exc:
+            print(f"No pude consultar iFlowGo para '{pokemon}': {type(exc).__name__}: {exc}")
+            await interaction.followup.send("No pude consultar la busqueda global en este momento. Intentalo nuevamente en unos minutos.")
+            return
+        except Exception as exc:
+            print(f"Error inesperado en /buscar para '{pokemon}': {type(exc).__name__}: {exc}")
+            await interaction.followup.send("No pude completar la busqueda global en este momento.")
+            return
+
+        if not search_result.spawns:
+            message = f"No se encontraron resultados para **{pokemon}** con IV minimo de **{miniv}%**."
+            if search_result.failed_hotspots:
+                message += f" {search_result.failed_hotspots} hotspot(s) no respondieron; puedes reintentar en unos minutos."
+            await interaction.followup.send(message)
+            return
+
+        for embed in _build_iflowgo_search_embeds(search_result, pokemon, miniv, cantidad):
+            await interaction.followup.send(embed=embed)
+
+    @bot.tree.command(name="coordsiv100", description="Devuelve coordenadas de 100 IV listas para copiar.")
     @app_commands.describe(nombre="Nombre completo o parcial del Pokemon", cantidad="Cuantos resultados mostrar (1-15)")
-    async def coords(interaction: discord.Interaction, nombre: Optional[str] = None, cantidad: int = 5) -> None:
+    async def coordsiv100(interaction: discord.Interaction, nombre: Optional[str] = None, cantidad: int = 5) -> None:
         if not 1 <= cantidad <= 15:
             await interaction.response.send_message("`cantidad` debe estar entre 1 y 15.", ephemeral=True)
             return
@@ -840,9 +1135,9 @@ def register_commands(bot: LucarioDiscordBot) -> None:
 
         await _send_pokemon_detail_embeds(interaction, results, "Moonani")
 
-    @bot.tree.command(name="coords0", description="Devuelve coordenadas de 0 IV listas para copiar.")
+    @bot.tree.command(name="coordsiv0", description="Devuelve coordenadas de 0 IV listas para copiar.")
     @app_commands.describe(nombre="Nombre completo o parcial del Pokemon", cantidad="Cuantos resultados mostrar (1-15)")
-    async def coords0(interaction: discord.Interaction, nombre: Optional[str] = None, cantidad: int = 5) -> None:
+    async def coordsiv0(interaction: discord.Interaction, nombre: Optional[str] = None, cantidad: int = 5) -> None:
         if not 1 <= cantidad <= 15:
             await interaction.response.send_message("`cantidad` debe estar entre 1 y 15.", ephemeral=True)
             return
@@ -870,8 +1165,8 @@ def register_commands(bot: LucarioDiscordBot) -> None:
             header = f"Bloque {chunk_index}/{len(chunks)}\n\n" if len(lines) > 1 else ""
             await interaction.followup.send(f"{header}{chunk}")
 
-    @bot.tree.command(name="agregar_seguimiento", description="Guarda un seguimiento de Pokimon especifico en un canal.")
-    @app_commands.describe(pokemon="Nombre del Pokimon a seguir", canal="Canal asociado al seguimiento")
+    @bot.tree.command(name="agregar_seguimiento", description="Guarda un seguimiento de Pokemon especifico en un canal.")
+    @app_commands.describe(pokemon="Nombre del Pokemon a seguir", canal="Canal asociado al seguimiento")
     @app_commands.default_permissions(manage_guild=True)
     @app_commands.guild_only()
     async def agregar_seguimiento(
@@ -885,7 +1180,7 @@ def register_commands(bot: LucarioDiscordBot) -> None:
 
         pokemon = pokemon.strip()
         if not pokemon:
-            await interaction.response.send_message("Debes indicar el nombre del Pokimon.", ephemeral=True)
+            await interaction.response.send_message("Debes indicar el nombre del Pokemon.", ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True, thinking=True)
@@ -913,7 +1208,7 @@ def register_commands(bot: LucarioDiscordBot) -> None:
         )
 
     @bot.tree.command(name="quitar_seguimiento", description="Quita un seguimiento guardado.")
-    @app_commands.describe(pokemon="Nombre del Pokimon que ya no quieres seguir")
+    @app_commands.describe(pokemon="Nombre del Pokemon que ya no quieres seguir")
     @app_commands.default_permissions(manage_guild=True)
     @app_commands.guild_only()
     async def quitar_seguimiento(interaction: discord.Interaction, pokemon: str) -> None:
@@ -1044,6 +1339,102 @@ def register_commands(bot: LucarioDiscordBot) -> None:
             await interaction.response.send_message(f"Canal IV0 quitado: {canal.mention}.", ephemeral=True)
         else:
             await interaction.response.send_message(f"{canal.mention} no estaba configurado como canal IV0.", ephemeral=True)
+
+    @bot.tree.command(name="agregar_canal_pvp_gl1", description="Activa avisos de Pokemon PVP GL1 (Great League) en un canal.")
+    @app_commands.describe(canal="Canal donde se enviaran los Pokemon PVP GL1")
+    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.guild_only()
+    async def agregar_canal_pvp_gl1(interaction: discord.Interaction, canal: discord.TextChannel) -> None:
+        if interaction.guild_id is None:
+            await interaction.response.send_message("Este comando solo se puede usar dentro de un servidor.", ephemeral=True)
+            return
+
+        added = bot.add_global_channel(interaction.guild_id, "pvp_gl1_channels", canal.id)
+        if added:
+            await interaction.response.send_message(
+                f"Canal PVP GL1 agregado: {canal.mention}. Enviare ahi los Pokemon PVP GL1 (Great League) que vayan apareciendo.",
+                ephemeral=True,
+            )
+        else:
+            await interaction.response.send_message(
+                f"{canal.mention} ya estaba configurado como canal PVP GL1.",
+                ephemeral=True,
+            )
+
+    @bot.tree.command(name="quitar_canal_pvp_gl1", description="Desactiva avisos PVP GL1 en un canal.")
+    @app_commands.describe(canal="Canal que dejara de recibir avisos PVP GL1")
+    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.guild_only()
+    async def quitar_canal_pvp_gl1(interaction: discord.Interaction, canal: discord.TextChannel) -> None:
+        if interaction.guild_id is None:
+            await interaction.response.send_message("Este comando solo se puede usar dentro de un servidor.", ephemeral=True)
+            return
+
+        removed = bot.remove_global_channel(interaction.guild_id, "pvp_gl1_channels", canal.id)
+        if removed:
+            await interaction.response.send_message(f"Canal PVP GL1 quitado: {canal.mention}.", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"{canal.mention} no estaba configurado como canal PVP GL1.", ephemeral=True)
+
+    @bot.tree.command(name="agregar_canal_pvp_ul1", description="Activa avisos de Pokemon PVP UL1 (Ultra League) en un canal.")
+    @app_commands.describe(canal="Canal donde se enviaran los Pokemon PVP UL1")
+    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.guild_only()
+    async def agregar_canal_pvp_ul1(interaction: discord.Interaction, canal: discord.TextChannel) -> None:
+        if interaction.guild_id is None:
+            await interaction.response.send_message("Este comando solo se puede usar dentro de un servidor.", ephemeral=True)
+            return
+
+        added = bot.add_global_channel(interaction.guild_id, "pvp_ul1_channels", canal.id)
+        if added:
+            await interaction.response.send_message(
+                f"Canal PVP UL1 agregado: {canal.mention}. Enviare ahi los Pokemon PVP UL1 (Ultra League) que vayan apareciendo.",
+                ephemeral=True,
+            )
+        else:
+            await interaction.response.send_message(
+                f"{canal.mention} ya estaba configurado como canal PVP UL1.",
+                ephemeral=True,
+            )
+
+    @bot.tree.command(name="quitar_canal_pvp_ul1", description="Desactiva avisos PVP UL1 en un canal.")
+    @app_commands.describe(canal="Canal que dejara de recibir avisos PVP UL1")
+    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.guild_only()
+    async def quitar_canal_pvp_ul1(interaction: discord.Interaction, canal: discord.TextChannel) -> None:
+        if interaction.guild_id is None:
+            await interaction.response.send_message("Este comando solo se puede usar dentro de un servidor.", ephemeral=True)
+            return
+
+        removed = bot.remove_global_channel(interaction.guild_id, "pvp_ul1_channels", canal.id)
+        if removed:
+            await interaction.response.send_message(f"Canal PVP UL1 quitado: {canal.mention}.", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"{canal.mention} no estaba configurado como canal PVP UL1.", ephemeral=True)
+
+    @bot.tree.command(name="ver_canales_pvp", description="Muestra canales globales PVP GL1 y UL1 guardados.")
+    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.guild_only()
+    async def ver_canales_pvp(interaction: discord.Interaction) -> None:
+        if interaction.guild_id is None:
+            await interaction.response.send_message("Este comando solo se puede usar dentro de un servidor.", ephemeral=True)
+            return
+
+        pvp_gl1_channels = bot.get_global_channels(interaction.guild_id, "pvp_gl1_channels")
+        pvp_ul1_channels = bot.get_global_channels(interaction.guild_id, "pvp_ul1_channels")
+        embed = discord.Embed(title="Canales globales PVP", color=discord.Color.green())
+        embed.add_field(
+            name="GL1 (Great League)",
+            value="\n".join(f"<#{channel_id}>" for channel_id in pvp_gl1_channels) if pvp_gl1_channels else "Ninguno",
+            inline=False,
+        )
+        embed.add_field(
+            name="UL1 (Ultra League)",
+            value="\n".join(f"<#{channel_id}>" for channel_id in pvp_ul1_channels) if pvp_ul1_channels else "Ninguno",
+            inline=False,
+        )
+        embed.set_footer(text="Canales globales de alertas PVP")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @bot.tree.command(name="rocket", description="Busca Rockets en Moonani por tipo o lider.")
     @app_commands.describe(tipo="Tipo o lider Rocket a buscar", cantidad="Cuantos resultados mostrar (1-10)")
@@ -1189,6 +1580,10 @@ def main() -> None:
     watch_monitor_interval_seconds = _read_int_env("LUCARIO_MONITOR_INTERVAL_SECONDS", 180)
     watch_scan_limit = _read_int_env("LUCARIO_ALERT_LIMIT_100IV", 250)
     zero_iv_scan_limit = _read_int_env("LUCARIO_ALERT_LIMIT_0IV", 250)
+    iflowgo_timeout = _read_int_env("IFLOWGO_TIMEOUT", 12)
+    iflowgo_max_workers = _read_int_env("IFLOWGO_MAX_WORKERS", 4)
+    iflowgo_cache_ttl_seconds = _read_int_env("IFLOWGO_CACHE_TTL_SECONDS", 120)
+    iflowgo_hotspot_limit = _read_int_env("IFLOWGO_HOTSPOT_LIMIT", 0)
 
     moonani = MoonaniClient(
         timeout=timeout,
@@ -1196,8 +1591,16 @@ def main() -> None:
         geocoder_endpoint=geocoder_endpoint or "https://nominatim.openstreetmap.org/reverse",
         geocoder_user_agent=geocoder_user_agent,
     )
+    iflowgo = IFlowGoClient(
+        hotspots_path=Path(__file__).with_name("hotspots.json"),
+        timeout=iflowgo_timeout,
+        max_workers=iflowgo_max_workers,
+        cache_ttl_seconds=iflowgo_cache_ttl_seconds,
+        hotspot_limit=iflowgo_hotspot_limit or None,
+    )
     bot = LucarioDiscordBot(
         moonani=moonani,
+        iflowgo=iflowgo,
         guild_id=guild_id,
         page_size=page_size,
         max_scan_records=max_scan_records,
