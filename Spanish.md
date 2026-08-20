@@ -61,8 +61,8 @@ Antes de empezar, recuerda que puedes unirte a nuestro servidor en discord para 
 - `/agregar_canal_pvp_gl1`: permite configurar un canal específico para enviar alertas de los pokemones rank1 de la Great League
 - `/agregar_canal_pvp_ul1`: permite configurar un canal específico para enviar alertas de los pokemones rank1 de la Ultra League
 - `/ver_canales_pvp`: muestra canales globales pvp GL1 y UL1 guardados
--`/quitar_canal_pvp_gl1`: desactiva los avisos pvp GL1 en el canal configurado
--`/quitar_canal_pvp_ul1`: desactiva los avisos pvp UL1 en el canal configurado
+- `/quitar_canal_pvp_gl1`: desactiva los avisos pvp GL1 en el canal configurado
+- `/quitar_canal_pvp_ul1`: desactiva los avisos pvp UL1 en el canal configurado
 - `/agregar_seguimiento`: agrega alertas de un pokemón específico iv100 en un canal
 - `/ver_seguimientos`: ver todos los seguimientos de pokémon iv100 configurados
 - `/quitar_seguimiento`: quitar alertas de un pokemón específico iv100 del canal
