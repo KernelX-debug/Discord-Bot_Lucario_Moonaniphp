@@ -10,7 +10,9 @@ Before you start, remember you can join our Discord server to check out how the 
   <img src="https://scontent.flim30-1.fna.fbcdn.net/v/t1.6435-9/43149276_1607597072873203_5129584054131228672_n.png?stp=dst-jpg_tt6&cstp=mx777x249&ctp=s777x249&_nc_cat=111&ccb=1-7&_nc_sid=127cfc&_nc_ohc=YiNjScvrMtkQ7kNvwFrQAzw&_nc_oc=AdqbuyLStVs_atOMtkq__89vnsy2e3RKrvOkH_Mbzl6rw8MCV_4QpQptEcX1Iz2AS2o&_nc_zt=23&_nc_ht=scontent.flim30-1.fna&_nc_gid=X74IKmr7aL-lMUQXMDdW0g&_nc_ss=7b289&oh=00_AQHWoXefum_YFLnvJbaipkpWiMqiH5wcC-vxF0NoBODPqA&oe=6AAA036C" width="150" alt="Discord">
 </a>
 
+If your native language is Spanish, you can check `Spanish.md` in that language: [Spanish.md](https://github.com/KernelX-debug/Discord-Bot_Lucario_Moonaniphp/blob/main/Spanish.md)
 
+Si tu idioma nativo es el español, puedes revisar el `Spanish.md` en ese idioma: [Spanish.md](https://github.com/KernelX-debug/Discord-Bot_Lucario_Moonaniphp/blob/main/Spanish.md)
 
 ## What does this project do. What am I aiming for?
 
