@@ -12,6 +12,8 @@ Antes de empezar, recuerda que puedes unirte a nuestro servidor en discord para 
 
 Si tu idioma nativo es el inglés, puedes revisar el README.md en ese idioma: [README.md](https://github.com/KernelX-debug/Discord-Bot_Lucario_Moonaniphp/blob/main/README.md)
 
+If your native language is English, you can check the README.md in that language: [README.md](https://github.com/KernelX-debug/Discord-Bot_Lucario_Moonaniphp/blob/main/README.md)
+
 
 ## Que hace este proyecto. ¿A que quiero llegar?
 
