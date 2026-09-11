@@ -1062,6 +1062,10 @@ Para mantener el bot activo sin necesidad de tener tu PC encendida puedes usar [
   <a href="https://buymeacoffee.com/ghericasas" target="_blank">
     <img src="https://github.com/user-attachments/assets/6db1edad-4682-4a4f-803f-b7c416c19cd3" alt="Buy Me A Coffee" width="217">
   </a>
+  
+  <a href="https://paypal.me/ghericasas" target="_blank">
+    <img src="https://img.shields.io/badge/PayPal-003087?logo=paypal&logoColor=fff" alt="Sponsor Paypal" width="203">
+  </a>
 </p>
 
 ## 📜 Licencia
