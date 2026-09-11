@@ -40,6 +40,7 @@ If your native language is English, you can check the README.md in that language
 - `questtest.py`: script base limpio usado para validar la idea de la función de quests en el juego
 - `.env`: variables de entorno (No compartir estos datos con terceros)
 - `requirements.txt`: dependencias del proyecto
+- `hotspots.json`: Incluye 189 puntos de interés para el escaneo de apariciones en estado salvaje, para su posterior uso en el endpoint iFlowGo
 
 ## 🔎 Comandos disponibles en discord (22)
 **Comandos para todos los usuarios de discord (@everyone)**
