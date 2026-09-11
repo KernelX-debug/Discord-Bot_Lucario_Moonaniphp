@@ -39,6 +39,7 @@ Si tu idioma nativo es el español, puedes revisar el `Spanish.md` en ese idioma
 - `questtest.py`: clean base script used to validate the quest feature idea in the game
 - `.env`: environment variables (do not share this data with third parties)
 - `requirements.txt`: project dependencies
+- `hotspots.json`: Features 189 hotspots for wild spawn scanning for use by the IFlowGo endpoint.
 
 ## 🔎 Commands available on Discord (22)
 **Commands for all Discord users (@everyone)**
