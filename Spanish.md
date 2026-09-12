@@ -1007,7 +1007,7 @@ py -3.13 discord_bot.py
 ## Funcionamiento
 
 <p align="center">
-  <img src="assets/chikoritasearch.png" alt="Busqueda de Chikorita" width="45%">
+  <img src="assets/giblesearch.png" alt="Busqueda de Gible" width="40.4%">
   <img src="assets/agregar_canal_iv100.png" alt="Agregar canal iv100" width="41.5%">
 </p>
 
