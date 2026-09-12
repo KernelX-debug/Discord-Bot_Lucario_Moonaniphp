@@ -35,6 +35,7 @@ class IFlowGoSpawn:
     city: str
     region: str
     spawn_id: str
+    end_time_epoch: Optional[int] = None
 
     @property
     def maps_url(self) -> str:
@@ -193,6 +194,20 @@ class IFlowGoClient:
             parsed = parsed.astimezone(UTC_PLUS_7)
         return parsed.strftime("%Y-%m-%d %H:%M:%S")
 
+    @staticmethod
+    def _expiration_epoch(value: Any) -> Optional[int]:
+        """Timestamp Unix confiable a partir del ISO 8601 que entrega iFlowGo (expires_at)."""
+        raw_value = str(value or "").strip()
+        if not raw_value:
+            return None
+        try:
+            parsed = datetime.fromisoformat(raw_value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return int(parsed.timestamp())
+
     def _fetch_global_page(self, pokemon_id: int, min_iv: int, page: int) -> Tuple[int, List[Dict[str, Any]]]:
         response = requests.get(
             GLOBAL_SEARCH_ENDPOINT,
@@ -220,7 +235,7 @@ class IFlowGoClient:
         return total_pages, items if isinstance(items, list) else []
 
     def _search_global_pokemon(self, pokemon_id: int, display_name: str, min_iv: int) -> IFlowGoSearchResult:
-        spawns_by_id = {}  # type: Dict[str, IFlowGoSpawn]
+        spawns_by_id = {}  # type: Dict[str, IFlowGoSpawn], Fuck
         page = 1
         total_pages = 1
 
@@ -255,6 +270,7 @@ class IFlowGoClient:
                     city="",
                     region="",
                     spawn_id=str(row.get("id", "")).strip(),
+                    end_time_epoch=self._expiration_epoch(row.get("expires_at")),
                 )
                 existing = spawns_by_id.get(spawn.unique_key)
                 if existing is None or spawn.iv_percent > existing.iv_percent:
@@ -362,6 +378,7 @@ class IFlowGoClient:
                             city=str(hotspot["city"]),
                             region=str(hotspot["region"]),
                             spawn_id=str(row.get("id", "")).strip(),
+                            end_time_epoch=self._expiration_epoch(row.get("expires_at")),
                         )
                         existing = spawns_by_id.get(spawn.unique_key)
                         if existing is None or spawn.iv_percent > existing.iv_percent:
