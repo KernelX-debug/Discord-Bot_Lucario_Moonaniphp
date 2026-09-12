@@ -3,6 +3,7 @@ import io
 import json
 import os
 import unicodedata
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 from urllib.parse import urlparse
@@ -52,29 +53,29 @@ ROCKET_EMOJIS = {
 
 ROCKET_CHOICES = [
     app_commands.Choice(name="Todos", value=""),
-    app_commands.Choice(name="Giovanni", value="giovanni"),
-    app_commands.Choice(name="Arlo", value="arlo"),
-    app_commands.Choice(name="Cliff", value="cliff"),
-    app_commands.Choice(name="Sierra", value="sierra"),
-    app_commands.Choice(name="Fire", value="fire"),
-    app_commands.Choice(name="Ice", value="ice"),
-    app_commands.Choice(name="Grass", value="grass"),
-    app_commands.Choice(name="Electric", value="electric"),
-    app_commands.Choice(name="Water", value="water"),
-    app_commands.Choice(name="Dark", value="dark"),
-    app_commands.Choice(name="Psychic", value="psychic"),
-    app_commands.Choice(name="Flying", value="flying"),
-    app_commands.Choice(name="Ground", value="ground"),
-    app_commands.Choice(name="Metal", value="metal"),
-    app_commands.Choice(name="Ghost", value="ghost"),
-    app_commands.Choice(name="Bug", value="bug"),
-    app_commands.Choice(name="Fighting", value="fighting"),
-    app_commands.Choice(name="Poison", value="poison"),
-    app_commands.Choice(name="Dragon", value="dragon"),
-    app_commands.Choice(name="Rock", value="rock"),
-    app_commands.Choice(name="Fairy", value="fairy"),
-    app_commands.Choice(name="Normal", value="normal"),
-    app_commands.Choice(name="Grunt", value="grunt"),
+    app_commands.Choice(name="Giovanni 👑", value="giovanni"),
+    app_commands.Choice(name="Arlo 🔴", value="arlo"),
+    app_commands.Choice(name="Cliff 🟠", value="cliff"),
+    app_commands.Choice(name="Sierra 🟣", value="sierra"),
+    app_commands.Choice(name="Fire 🔥", value="fire"),
+    app_commands.Choice(name="Ice ❄️", value="ice"),
+    app_commands.Choice(name="Grass 🌿", value="grass"),
+    app_commands.Choice(name="Electric ⚡", value="electric"),
+    app_commands.Choice(name="Water 💧", value="water"),
+    app_commands.Choice(name="Dark 🌑", value="dark"),
+    app_commands.Choice(name="Psychic 🔮", value="psychic"),
+    app_commands.Choice(name="Flying 🦅", value="flying"),
+    app_commands.Choice(name="Ground 🟫", value="ground"),
+    app_commands.Choice(name="Metal ⚙️", value="metal"),
+    app_commands.Choice(name="Ghost 👻", value="ghost"),
+    app_commands.Choice(name="Bug 🐛", value="bug"),
+    app_commands.Choice(name="Fighting 🥊", value="fighting"),
+    app_commands.Choice(name="Poison ☠️", value="poison"),
+    app_commands.Choice(name="Dragon 🐉", value="dragon"),
+    app_commands.Choice(name="Rock 🪨", value="rock"),
+    app_commands.Choice(name="Fairy 🧚", value="fairy"),
+    app_commands.Choice(name="Normal ⭐", value="normal"),
+    app_commands.Choice(name="Grunt 👤", value="grunt"),
 ]
 
 WATCH_KIND_PREFIX = "watch"
@@ -86,6 +87,138 @@ WATCH_SPAWN_COOLDOWN_SECONDS = 90 * 60
 WATCH_ERROR_COOLDOWN_SECONDS = 30 * 60
 POKEMON_IMAGE_TIMEOUT_SECONDS = 10
 POKEMON_IMAGE_MAX_BYTES = 2 * 1024 * 1024
+
+PERU_TIMEZONE = timezone(timedelta(hours=-5))
+
+MOONANI_MAX_TIMEZONE_DRIFT_HOURS = 12
+
+_MOONANI_DATETIME_FORMATS = (
+    "%Y-%m-%d %H:%M:%S",
+    "%Y-%m-%dT%H:%M:%S",
+    "%Y-%m-%d %H:%M",
+    "%d/%m/%Y %H:%M:%S",
+    "%d/%m/%Y %H:%M",
+    "%m/%d/%Y %H:%M:%S",
+    "%d-%m-%Y %H:%M:%S",
+    "%Y/%m/%d %H:%M:%S",
+)
+
+
+def _parse_moonani_datetime(raw_value: str) -> Optional[datetime]:
+    """Interpreta una fecha de Moonani preservando cualquier zona horaria explicita."""
+    cleaned = (raw_value or "").strip()
+    if not cleaned:
+        return None
+
+    try:
+        return datetime.fromisoformat(cleaned.replace("Z", "+00:00"))
+    except ValueError:
+        pass
+
+    for date_format in _MOONANI_DATETIME_FORMATS:
+        try:
+            return datetime.strptime(cleaned, date_format)
+        except ValueError:
+            continue
+
+    # Algunos paneles solo entregan la hora del dia (ej. "14:35:22").
+    # Se deja como naive para que la resolucion de +/-12h se aplique tambien aqui.
+    for time_format in ("%H:%M:%S", "%H:%M"):
+        try:
+            parsed_time = datetime.strptime(cleaned, time_format).time()
+        except ValueError:
+            continue
+
+        now = datetime.now(PERU_TIMEZONE)
+        return now.replace(
+            hour=parsed_time.hour,
+            minute=parsed_time.minute,
+            second=parsed_time.second,
+            microsecond=0,
+            tzinfo=None,
+        )
+
+    return None
+
+
+def _resolve_moonani_naive_datetime(parsed: datetime) -> datetime:
+    """
+    Reconstruye el instante de una fecha de Moonani que no trae zona horaria.
+
+    Se prueban offsets desde 12 horas por debajo hasta 12 horas por encima de
+    la zona de Peru. Como las apariciones de Pokemon, Rockets y quests son
+    datos actuales, el candidato cuyo instante queda mas cerca de ahora es
+    la interpretacion mas probable.
+
+    El datetime devuelto siempre queda con una zona horaria explicita.
+    """
+    if parsed.tzinfo is not None:
+        return parsed
+
+    now_utc = datetime.now(timezone.utc)
+    candidates = []
+
+    for drift_hours in range(
+        -MOONANI_MAX_TIMEZONE_DRIFT_HOURS,
+        MOONANI_MAX_TIMEZONE_DRIFT_HOURS + 1,
+    ):
+        source_offset = PERU_TIMEZONE.utcoffset(None) + timedelta(hours=drift_hours)
+        source_timezone = timezone(source_offset)
+        candidate = parsed.replace(tzinfo=source_timezone)
+        distance = abs(candidate.astimezone(timezone.utc) - now_utc)
+        candidates.append((distance, candidate))
+
+    return min(candidates, key=lambda item: item[0])[1]
+
+
+def _format_dynamic_timestamp(raw_value: Optional[str]) -> str:
+    """
+    Convierte una hora de Moonani en un timestamp dinamico de Discord
+    (``<t:TIMESTAMP:F>``) para que cada persona la vea en su propia zona
+    horaria.
+
+    Si Moonani entrega una zona horaria explicita, se respeta. Si entrega una
+    fecha naive, se reconstruye el instante probando el rango de +/-12 horas
+    respecto de Peru. Si el valor no se puede interpretar, se devuelve tal
+    cual para no romper ningun comando existente.
+    """
+    cleaned = (raw_value or "").strip()
+    if not cleaned or cleaned.upper() in {"N/D", "N/A"}:
+        return cleaned or "N/D"
+
+    parsed = _parse_moonani_datetime(cleaned)
+    if parsed is None:
+        return cleaned
+
+    parsed = _resolve_moonani_naive_datetime(parsed)
+    return f"<t:{int(parsed.timestamp())}:F>"
+
+
+class CopyCoordsView(discord.ui.View):
+    """
+    Boton que responde con las coordenadas en un bloque de codigo aislado,
+    para que en el celular baste con mantener presionado y tocar "Copiar"
+    sin arrastrar el link de Maps ni el resto del texto del embed.
+    """
+
+    def __init__(self, coords: str) -> None:
+        super().__init__(timeout=None)
+        self._coords = (coords or "").strip()
+
+    @discord.ui.button(label="📋 Copiar coordenadas", style=discord.ButtonStyle.secondary)
+    async def copy_coords(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ) -> None:
+        await interaction.response.send_message(
+            f"{self._coords}", ephemeral=True
+        )
+
+
+def _coords_view(coords: Optional[str]) -> Optional[CopyCoordsView]:
+    """Crea el boton de copiar coordenadas, o None si no hay coordenadas validas."""
+    cleaned = (coords or "").strip()
+    return CopyCoordsView(cleaned) if cleaned else None
+
 
 def _read_int_env(name: str, default: int) -> int:
     raw_value = os.getenv(name)
@@ -146,7 +279,7 @@ def _format_spawn_short(index: int, spawn: PokemonSpawn) -> str:
         f"(#{spawn.number})\n"
         f"Coords: `{spawn.coords}` | Maps: <{spawn.maps_url}>\n"
         f"IV: {spawn.iv_percent}% | CP: {spawn.cp} | Nivel: {spawn.level}\n"
-        f"Pais: {spawn.country} | Fin: {spawn.end_time}"
+        f"Pais: {spawn.country} | Fin: {_format_dynamic_timestamp(spawn.end_time)}"
     )
 
 
@@ -176,8 +309,8 @@ def _build_detail_embed(
         value=f"ATK {spawn.attack} | DEF {spawn.defense} | HP {spawn.hp}",
         inline=False,
     )
-    embed.add_field(name="Inicio", value=spawn.start_time or "N/D", inline=True)
-    embed.add_field(name="Fin", value=spawn.end_time or "N/D", inline=True)
+    embed.add_field(name="Inicio", value=_format_dynamic_timestamp(spawn.start_time), inline=True)
+    embed.add_field(name="Fin", value=_format_dynamic_timestamp(spawn.end_time), inline=True)
     embed.add_field(name="Pais", value=spawn.country or "Unknown", inline=True)
     embed.set_footer(text=f"Datos obtenidos por Lucario desde {source_label}")
 
@@ -211,8 +344,8 @@ def _build_rocket_embed(rocket: RocketSpawn) -> discord.Embed:
     embed = discord.Embed(title=title, color=color)
     embed.add_field(name="Coords", value=f"`{rocket.coords}`", inline=False)
     embed.add_field(name="Mapa", value=f"[Abrir en Google Maps]({rocket.maps_url})", inline=False)
-    embed.add_field(name="Inicio", value=rocket.start_time, inline=True)
-    embed.add_field(name="Fin", value=rocket.end_time, inline=True)
+    embed.add_field(name="Inicio", value=_format_dynamic_timestamp(rocket.start_time), inline=True)
+    embed.add_field(name="Fin", value=_format_dynamic_timestamp(rocket.end_time), inline=True)
     embed.add_field(name="Pais", value=rocket.country.upper() if rocket.country else "??", inline=True)
     embed.set_footer(text="Datos obtenidos por Lucario desde Moonani")
     return embed
@@ -239,8 +372,8 @@ def _build_quest_embed(quest: Dict[str, str]) -> discord.Embed:
     embed.add_field(name="Mision", value=quest.get("quest", "N/D"), inline=False)
     embed.add_field(name="Coords", value=f"`{quest.get('coords', '')}`", inline=False)
     embed.add_field(name="Mapa", value=f"[Abrir en Google Maps]({quest.get('maps', '')})", inline=False)
-    embed.add_field(name="Inicio", value=quest.get("inicio", "N/D"), inline=True)
-    embed.add_field(name="Fin", value=quest.get("fin", "N/D"), inline=True)
+    embed.add_field(name="Inicio", value=_format_dynamic_timestamp(quest.get("inicio", "N/D")), inline=True)
+    embed.add_field(name="Fin", value=_format_dynamic_timestamp(quest.get("fin", "N/D")), inline=True)
     embed.add_field(name="Pais", value=quest.get("pais", "N/D"), inline=True)
     embed.set_footer(text="Datos obtenidos por Lucario desde Moonani")
     return embed
@@ -282,7 +415,7 @@ def _build_pvp_embed(
         inline=True,
     )
     embed.add_field(name="Mapa", value=f"[Abrir en Google Maps]({pokemon.get('maps_url', '')})", inline=False)
-    embed.add_field(name="Fin", value=str(pokemon.get("end_time") or "N/D"), inline=True)
+    embed.add_field(name="Fin", value=_format_dynamic_timestamp(str(pokemon.get("end_time") or "N/D")), inline=True)
     embed.add_field(name="Pais", value=str(pokemon.get("country") or "Unknown"), inline=True)
     embed.set_footer(text="Datos obtenidos por Lucario desde Moonani")
 
@@ -296,12 +429,13 @@ def _build_pvp_embed(
 
 def _format_iflowgo_spawn(index: int, spawn: IFlowGoSpawn) -> str:
     location = ", ".join(item for item in (spawn.city, spawn.region, spawn.country) if item and item != "Unknown")
+    end_display = f"<t:{spawn.end_time_epoch}:F>" if spawn.end_time_epoch else (spawn.end_time or "N/D")
     return (
         f"**{index}. {spawn.pokemon_name}** (#{spawn.pokemon_id})\n"
         f"Coords: `{spawn.coords}` | [Maps]({spawn.maps_url})\n"
         f"IV: {spawn.iv_percent:g}% | CP: {spawn.cp} | Nivel: {spawn.level}\n"
         f"ATK {spawn.attack} | DEF {spawn.defense} | HP {spawn.hp}\n"
-        f"Fin: {spawn.end_time or 'N/D'} | Zona: {location or 'Unknown'}"
+        f"Fin: {end_display} | Zona: {location or 'Unknown'}"
     )
 
 
@@ -341,8 +475,8 @@ def _format_coords_line(index: int, spawn: PokemonSpawn) -> str:
         f"Maps: <{spawn.maps_url}>\n"
         f"IV: {spawn.iv_percent}% | CP: {spawn.cp} | Nivel: {spawn.level}\n"
         f"ATK:{spawn.attack} DEF:{spawn.defense} HP:{spawn.hp}\n"
-        f"Inicio: {spawn.start_time or 'N/D'}\n"
-        f"Fin: {spawn.end_time or 'N/D'} | Pais: {spawn.country or 'Unknown'}"
+        f"Inicio: {_format_dynamic_timestamp(spawn.start_time)}\n"
+        f"Fin: {_format_dynamic_timestamp(spawn.end_time)} | Pais: {spawn.country or 'Unknown'}"
     )
 
 
@@ -407,15 +541,16 @@ async def _send_pokemon_detail_embeds(
 ) -> None:
     for index, spawn in enumerate(results):
         embed, file = await _build_pokemon_embed_payload(spawn, source_label)
+        send_kwargs = {"embed": embed}
+        if file is not None:
+            send_kwargs["file"] = file
+        view = _coords_view(spawn.coords)
+        if view is not None:
+            send_kwargs["view"] = view
         if index == 0 or interaction.channel is None:
-            if file is not None:
-                await interaction.followup.send(embed=embed, file=file)
-            else:
-                await interaction.followup.send(embed=embed)
-        elif file is not None:
-            await interaction.channel.send(embed=embed, file=file)
+            await interaction.followup.send(**send_kwargs)
         else:
-            await interaction.channel.send(embed=embed)
+            await interaction.channel.send(**send_kwargs)
 
 
 async def _send_pokemon_embed_to_channel(
@@ -424,10 +559,13 @@ async def _send_pokemon_embed_to_channel(
     source_label: str,
 ) -> None:
     embed, file = await _build_pokemon_embed_payload(spawn, source_label)
+    send_kwargs = {"embed": embed}
     if file is not None:
-        await channel.send(embed=embed, file=file)
-    else:
-        await channel.send(embed=embed)
+        send_kwargs["file"] = file
+    view = _coords_view(spawn.coords)
+    if view is not None:
+        send_kwargs["view"] = view
+    await channel.send(**send_kwargs)
 
 
 def _pvp_image_filename(pokemon: Dict[str, object]) -> str:
@@ -484,10 +622,13 @@ async def _send_pvp_embed_to_channel(
     pokemon: Dict[str, object],
 ) -> None:
     embed, file = await _build_pvp_embed_payload(pokemon)
+    send_kwargs = {"embed": embed}
     if file is not None:
-        await channel.send(embed=embed, file=file)
-    else:
-        await channel.send(embed=embed)
+        send_kwargs["file"] = file
+    view = _coords_view(str(pokemon.get("coords", "")))
+    if view is not None:
+        send_kwargs["view"] = view
+    await channel.send(**send_kwargs)
 
 
 class LucarioDiscordBot(commands.Bot):
@@ -1463,7 +1604,12 @@ def register_commands(bot: LucarioDiscordBot) -> None:
             return
 
         if len(results) == 1:
-            await interaction.followup.send(embed=_build_rocket_embed(results[0]))
+            embed = _build_rocket_embed(results[0])
+            view = _coords_view(results[0].coords)
+            if view is not None:
+                await interaction.followup.send(embed=embed, view=view)
+            else:
+                await interaction.followup.send(embed=embed)
             return
 
         label = tipo.name if tipo else "Rockets"
@@ -1474,7 +1620,7 @@ def register_commands(bot: LucarioDiscordBot) -> None:
             lines.append(
                 f"**{index}. {emoji} {rocket_item.display_name}**\n"
                 f"Coords: `{rocket_item.coords}` | [Maps]({rocket_item.maps_url})\n"
-                f"Inicio: {rocket_item.start_time} | Fin: {rocket_item.end_time} | Pais: {rocket_item.country.upper() if rocket_item.country else '??'}"
+                f"Inicio: {_format_dynamic_timestamp(rocket_item.start_time)} | Fin: {_format_dynamic_timestamp(rocket_item.end_time)} | Pais: {rocket_item.country.upper() if rocket_item.country else '??'}"
             )
         embed.description = "\n\n".join(lines)
         embed.set_footer(text="Datos obtenidos por Lucario desde Moonani")
@@ -1505,7 +1651,12 @@ def register_commands(bot: LucarioDiscordBot) -> None:
             return
 
         if len(raids) == 1:
-            await interaction.followup.send(embed=_build_raid_embed(raids[0]))
+            embed = _build_raid_embed(raids[0])
+            view = _coords_view(raids[0].get("coords", ""))
+            if view is not None:
+                await interaction.followup.send(embed=embed, view=view)
+            else:
+                await interaction.followup.send(embed=embed)
             return
 
         embed = discord.Embed(title="Raids en Moonani", color=discord.Color.orange())
@@ -1545,7 +1696,12 @@ def register_commands(bot: LucarioDiscordBot) -> None:
             return
 
         for quest_item in quests:
-            await interaction.followup.send(embed=_build_quest_embed(quest_item))
+            embed = _build_quest_embed(quest_item)
+            view = _coords_view(quest_item.get("coords", ""))
+            if view is not None:
+                await interaction.followup.send(embed=embed, view=view)
+            else:
+                await interaction.followup.send(embed=embed)
 
     @bot.tree.error
     async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
