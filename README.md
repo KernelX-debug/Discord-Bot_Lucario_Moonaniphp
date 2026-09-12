@@ -1006,7 +1006,7 @@ py -3.13 discord_bot.py
 ## How it works
 
 <p align="center">
-  <img src="assets/giblesearch.png" alt="Busqueda de Gible" width="45%">
+  <img src="assets/giblesearch.png" alt="Busqueda de Gible" width="40.4%">
   <img src="assets/agregar_canal_iv100.png" alt="Agregar canal iv100" width="41.5%">
 </p>
 
