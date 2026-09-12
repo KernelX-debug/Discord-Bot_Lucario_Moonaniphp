@@ -121,8 +121,6 @@ def _parse_moonani_datetime(raw_value: str) -> Optional[datetime]:
         except ValueError:
             continue
 
-    # Algunos paneles solo entregan la hora del dia (ej. "14:35:22").
-    # Se deja como naive para que la resolucion de +/-12h se aplique tambien aqui.
     for time_format in ("%H:%M:%S", "%H:%M"):
         try:
             parsed_time = datetime.strptime(cleaned, time_format).time()
